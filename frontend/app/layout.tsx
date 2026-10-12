@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 
@@ -32,7 +33,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <AuthProvider>
-          <Navbar />
+          <Suspense fallback={<div className="h-16 bg-white border-b border-slate-200" />}>
+            <Navbar />
+          </Suspense>
           <main className="flex-1">{children}</main>
           <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
             <p>&copy; 2026 RoomiLink AI. Beyond Finding a Room, Building Compatible Shared Living.</p>
