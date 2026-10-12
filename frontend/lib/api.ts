@@ -2,15 +2,16 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions extends Omit<RequestInit, "body"> {
   requiresAuth?: boolean;
+  body?: any;
 }
 
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<{ data?: T; error?: string; status: number }> {
-  const { requiresAuth = true, headers = {}, ...rest } = options;
+  const { requiresAuth = true, headers = {}, body, ...rest } = options;
 
   const defaultHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -26,9 +27,15 @@ export async function apiRequest<T = any>(
 
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
 
+  const requestBody =
+    body && typeof body !== "string" && !(body instanceof FormData)
+      ? JSON.stringify(body)
+      : body;
+
   try {
     const response = await fetch(url, {
       headers: defaultHeaders,
+      body: requestBody,
       ...rest,
     });
 
