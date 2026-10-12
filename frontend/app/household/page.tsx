@@ -1,0 +1,911 @@
+"use client";
+
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/api";
+import {
+  HouseholdInfo,
+  HouseholdMemberInfo,
+  LedgerData,
+  ChoreItem,
+  ExpenseItem,
+} from "@/types/household";
+
+function HouseholdContent() {
+  const { isAuthenticated, user } = useAuth();
+
+  const [household, setHousehold] = useState<HouseholdInfo | null>(null);
+  const [members, setMembers] = useState<HouseholdMemberInfo[]>([]);
+  const [myRole, setMyRole] = useState<string>("member");
+  const [activeTab, setActiveTab] = useState<"expenses" | "chores" | "members">("expenses");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Creation / Join form state
+  const [createName, setCreateName] = useState("");
+  const [createAddress, setCreateAddress] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Expenses & Ledger state
+  const [ledger, setLedger] = useState<LedgerData | null>(null);
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [expTitle, setExpTitle] = useState("");
+  const [expAmount, setExpAmount] = useState("");
+  const [expCategory, setExpCategory] = useState("Groceries");
+
+  // Chores state
+  const [chores, setChores] = useState<ChoreItem[]>([]);
+  const [showAddChoreModal, setShowAddChoreModal] = useState(false);
+  const [choreTitle, setChoreTitle] = useState("");
+  const [choreFrequency, setChoreFrequency] = useState("weekly");
+  const [choreDueDate, setChoreDueDate] = useState("Friday");
+  const [choreAssignee, setChoreAssignee] = useState<string>("");
+
+  const fetchHouseholdData = useCallback(async () => {
+    if (!isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiRequest<{
+        data: { household: HouseholdInfo; members: HouseholdMemberInfo[]; my_role: string } | null;
+      }>("/household/current", { requiresAuth: true });
+
+      if (res.data?.data) {
+        setHousehold(res.data.data.household);
+        setMembers(res.data.data.members);
+        setMyRole(res.data.data.my_role);
+
+        // Fetch ledger and chores in parallel
+        const hhId = res.data.data.household.id;
+        const [ledgerRes, choresRes] = await Promise.all([
+          apiRequest<{ data: LedgerData }>(`/household/${hhId}/expenses`, { requiresAuth: true }),
+          apiRequest<{ data: ChoreItem[] }>(`/household/${hhId}/chores`, { requiresAuth: true }),
+        ]);
+
+        if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
+        if (choresRes.data?.data) setChores(choresRes.data.data);
+      } else {
+        setHousehold(null);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to load household.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchHouseholdData();
+  }, [fetchHouseholdData]);
+
+  // Create Household handler
+  const handleCreateHousehold = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await apiRequest<{ data: { household: HouseholdInfo } }>("/household/create", {
+        method: "POST",
+        requiresAuth: true,
+        body: { name: createName, address: createAddress },
+      });
+      if (res.data?.data) {
+        await fetchHouseholdData();
+      } else {
+        setError(res.error || "Failed to create household.");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Network error.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Join Household handler
+  const handleJoinHousehold = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await apiRequest<{ data: { household: HouseholdInfo } }>("/household/join", {
+        method: "POST",
+        requiresAuth: true,
+        body: { invite_code: joinCode.trim().toUpperCase() },
+      });
+      if (res.data?.data) {
+        await fetchHouseholdData();
+      } else {
+        setError(res.error || "Failed to join household with this code.");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Network error.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Copy Invite Code
+  const copyInviteCode = () => {
+    if (!household?.invite_code) return;
+    navigator.clipboard.writeText(household.invite_code);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  // Add Expense handler
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!household) return;
+    setActionLoading(true);
+    try {
+      const res = await apiRequest(`/household/${household.id}/expenses`, {
+        method: "POST",
+        requiresAuth: true,
+        body: {
+          title: expTitle,
+          amount: parseFloat(expAmount),
+          category: expCategory,
+        },
+      });
+      if (res.data) {
+        setExpTitle("");
+        setExpAmount("");
+        setShowAddExpenseModal(false);
+        // Refresh ledger
+        const ledgerRes = await apiRequest<{ data: LedgerData }>(
+          `/household/${household.id}/expenses`,
+          { requiresAuth: true }
+        );
+        if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to record expense.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Settle Debt handler
+  const handleSettleDebt = async (creditorId: number) => {
+    if (!household) return;
+    try {
+      await apiRequest(`/household/${household.id}/settle`, {
+        method: "POST",
+        requiresAuth: true,
+        body: { to_user_id: creditorId },
+      });
+      // Refresh ledger
+      const ledgerRes = await apiRequest<{ data: LedgerData }>(
+        `/household/${household.id}/expenses`,
+        { requiresAuth: true }
+      );
+      if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
+    } catch (err: any) {
+      alert("Failed to settle debt: " + err?.message);
+    }
+  };
+
+  // Add Chore handler
+  const handleAddChore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!household) return;
+    setActionLoading(true);
+    try {
+      const res = await apiRequest(`/household/${household.id}/chores`, {
+        method: "POST",
+        requiresAuth: true,
+        body: {
+          title: choreTitle,
+          frequency: choreFrequency,
+          due_date: choreDueDate,
+          assigned_to_id: choreAssignee ? parseInt(choreAssignee) : null,
+        },
+      });
+      if (res.data) {
+        setChoreTitle("");
+        setShowAddChoreModal(false);
+        // Refresh chores
+        const choresRes = await apiRequest<{ data: ChoreItem[] }>(
+          `/household/${household.id}/chores`,
+          { requiresAuth: true }
+        );
+        if (choresRes.data?.data) setChores(choresRes.data.data);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Failed to add chore.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Toggle Chore completion
+  const handleToggleChore = async (choreId: number) => {
+    if (!household) return;
+    // Optimistic UI update
+    setChores((prev) =>
+      prev.map((c) => (c.id === choreId ? { ...c, is_completed: !c.is_completed } : c))
+    );
+    try {
+      await apiRequest(`/household/${household.id}/chores/${choreId}/toggle`, {
+        method: "PATCH",
+        requiresAuth: true,
+      });
+    } catch (err: any) {
+      // Revert if error
+      const choresRes = await apiRequest<{ data: ChoreItem[] }>(
+        `/household/${household.id}/chores`,
+        { requiresAuth: true }
+      );
+      if (choresRes.data?.data) setChores(choresRes.data.data);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-md text-center space-y-5">
+          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto font-bold">
+            🏠
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-900">
+            Household Workspace
+          </h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Manage shared expenses, debt ledgers, weekly chore rotations, and digital living agreements with your roommates.
+          </p>
+          <div className="flex flex-col gap-3 pt-2">
+            <Link
+              href="/login"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition"
+            >
+              Log In to Workspace
+            </Link>
+            <Link
+              href="/register"
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+            >
+              Create Free Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs text-slate-500">Loading household operations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // User has no household yet -> Show onboarding creation / join view
+  if (!household) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="text-center space-y-3">
+            <h1 className="text-3xl font-extrabold text-slate-900">
+              Welcome to Household Workspace
+            </h1>
+            <p className="text-sm text-slate-500 max-w-xl mx-auto">
+              You are not currently part of a household workspace. Create a new one for your apartment or enter an invite code from your roommate.
+            </p>
+            {error && (
+              <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl max-w-md mx-auto">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Create Household Card */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm space-y-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xl">
+                  +
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">Create a Household</h3>
+                  <p className="text-xs text-slate-500">Start a shared space for your flat</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleCreateHousehold} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Apartment / Household Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    placeholder="e.g. Maple Street Commons"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Street Address & City
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={createAddress}
+                    onChange={(e) => setCreateAddress(e.target.value)}
+                    placeholder="e.g. 742 Maple St, Apt 3B, Austin"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-indigo-100 transition cursor-pointer"
+                >
+                  {actionLoading ? "Creating Space..." : "Create & Generate Invite Code"}
+                </button>
+              </form>
+            </div>
+
+            {/* Join Household Card */}
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm space-y-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 font-bold flex items-center justify-center text-xl">
+                  🔑
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">Join via Invite Code</h3>
+                  <p className="text-xs text-slate-500">Connect to your roommates&apos; active space</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleJoinHousehold} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    8-Character Invite Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={8}
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. A8F2C41D"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-center tracking-widest text-sm uppercase focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Ask your roommate or lease admin for the 8-character invitation code displayed at the top of their dashboard.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={actionLoading || joinCode.length < 8}
+                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-teal-100 transition cursor-pointer"
+                >
+                  {actionLoading ? "Joining..." : "Join Household"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Active Household Dashboard View
+  return (
+    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Workspace Banner */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2.5">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                {myRole === "admin" ? "Household Admin" : "Active Member"}
+              </span>
+              <span className="text-xs text-indigo-300">· {members.length} Roommates</span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight">{household.name}</h1>
+            <p className="text-xs text-slate-300">{household.address}</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Invite Code Widget */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-4 py-2.5 flex items-center space-x-3">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-300">
+                  Invite Code
+                </p>
+                <p className="font-mono font-bold text-sm tracking-wider text-teal-300">
+                  {household.invite_code}
+                </p>
+              </div>
+              <button
+                onClick={copyInviteCode}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                {copySuccess ? "Copied!" : "Copy"}
+              </button>
+            </div>
+
+            <Link
+              href="/household/agreement"
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold shadow-md transition"
+            >
+              📄 AI Living Agreement
+            </Link>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 space-x-6 text-sm font-semibold">
+          {[
+            { id: "expenses", label: "💰 Shared Expenses & Ledger" },
+            { id: "chores", label: "🧹 Chore Rotations" },
+            { id: "members", label: "👥 Roommate Roster" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`pb-3.5 transition cursor-pointer ${
+                activeTab === tab.id
+                  ? "border-b-2 border-indigo-600 text-indigo-600"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB 1: EXPENSES & DEBT LEDGER */}
+        {activeTab === "expenses" && (
+          <div className="space-y-8">
+            {/* 3 Balance Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  You are Owed
+                </span>
+                <p className="text-3xl font-extrabold text-emerald-600">
+                  +${ledger?.total_owed_to_me.toFixed(2) || "0.00"}
+                </p>
+                <p className="text-[11px] text-slate-400">From roommates for shared bills</p>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  You Owe
+                </span>
+                <p className="text-3xl font-extrabold text-amber-600">
+                  -${ledger?.total_i_owe.toFixed(2) || "0.00"}
+                </p>
+                <p className="text-[11px] text-slate-400">Your share of expenses paid by others</p>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Net Balance
+                </span>
+                <p
+                  className={`text-3xl font-extrabold ${
+                    (ledger?.net_balance || 0) >= 0 ? "text-indigo-600" : "text-amber-600"
+                  }`}
+                >
+                  {(ledger?.net_balance || 0) >= 0 ? "+" : ""}$
+                  {ledger?.net_balance.toFixed(2) || "0.00"}
+                </p>
+                <p className="text-[11px] text-slate-400">Overall household balance status</p>
+              </div>
+            </div>
+
+            {/* Who Owes Whom Ledger */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Who Owes Whom (Simplified Debt Ledger)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Calculated automatically from shared purchases
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddExpenseModal(true)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition"
+                >
+                  + Add Expense
+                </button>
+              </div>
+
+              {!ledger?.debts?.length ? (
+                <div className="p-8 text-center bg-slate-50 rounded-xl text-xs text-slate-500">
+                  🎉 All squared away! No outstanding debts between household members.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {ledger.debts.map((debt, idx) => {
+                    const isMyDebt = debt.from_user_id === user?.id;
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-4 rounded-xl border flex items-center justify-between text-xs ${
+                          isMyDebt
+                            ? "bg-amber-50/50 border-amber-200"
+                            : "bg-slate-50/70 border-slate-200"
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900">
+                            {isMyDebt ? "You owe " : `${debt.from_user_name} owes `}
+                            <span className="text-indigo-700">{debt.to_user_name}</span>
+                          </p>
+                          <p className="text-base font-extrabold text-slate-800">
+                            ${debt.amount.toFixed(2)}
+                          </p>
+                        </div>
+                        {isMyDebt && (
+                          <button
+                            onClick={() => handleSettleDebt(debt.to_user_id)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition cursor-pointer"
+                          >
+                            Settle Debt
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Expense Transaction History */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+              <h3 className="font-bold text-slate-900 text-base">Recent Expense History</h3>
+              {!ledger?.recent_expenses?.length ? (
+                <p className="text-xs text-slate-500">No expenses recorded yet.</p>
+              ) : (
+                <div className="divide-y divide-slate-100 text-xs">
+                  {ledger.recent_expenses.map((exp) => (
+                    <div key={exp.id} className="py-3 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                          {exp.category === "Groceries"
+                            ? "🛒"
+                            : exp.category === "Utilities"
+                            ? "💡"
+                            : "📦"}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-slate-900">{exp.title}</p>
+                          <p className="text-[11px] text-slate-400">
+                            Paid by {exp.payer_name} · {exp.category}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-slate-900 text-sm">
+                        ${exp.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CHORE CHECKLIST */}
+        {activeTab === "chores" && (
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Weekly Chore Rotations</h3>
+                <p className="text-xs text-slate-500">
+                  Track recurring household tasks with single-click completion check-offs
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddChoreModal(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition"
+              >
+                + Add Chore
+              </button>
+            </div>
+
+            {!chores.length ? (
+              <div className="p-12 text-center bg-slate-50 rounded-2xl text-xs text-slate-500">
+                No chores set up yet. Click &apos;+ Add Chore&apos; to schedule dishwashing, trash duty, or vacuuming!
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {chores.map((chore) => (
+                  <div
+                    key={chore.id}
+                    className={`p-4 rounded-xl border flex items-center justify-between transition cursor-pointer ${
+                      chore.is_completed
+                        ? "bg-slate-50 border-slate-200 opacity-60"
+                        : "bg-white border-slate-200 hover:border-indigo-300 shadow-xs"
+                    }`}
+                    onClick={() => handleToggleChore(chore.id)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={chore.is_completed}
+                        onChange={() => {}} // Handled by div click
+                        className="w-4 h-4 text-indigo-600 rounded-md border-slate-300 pointer-events-none"
+                      />
+                      <div>
+                        <p
+                          className={`text-xs font-semibold ${
+                            chore.is_completed
+                              ? "line-through text-slate-400"
+                              : "text-slate-900"
+                          }`}
+                        >
+                          {chore.title}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Due: {chore.due_date || "Weekly"} · Assigned:{" "}
+                          {chore.assigned_to_name || "Anyone"}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        chore.is_completed
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {chore.is_completed ? "Done" : "Pending"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: ROOMMATE ROSTER */}
+        {activeTab === "members" && (
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Active Roommate Roster</h3>
+              <p className="text-xs text-slate-500">
+                Members with access to this household workspace
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {members.map((m) => (
+                <div
+                  key={m.id}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center space-x-3"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-xs">
+                    {m.user_name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="font-semibold text-xs text-slate-900 truncate">
+                        {m.user_name}
+                      </p>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          m.role === "admin"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {m.role}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate">{m.user_email}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Add Expense */}
+        {showAddExpenseModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-slate-900 text-base">Record New Expense</h3>
+                <button
+                  onClick={() => setShowAddExpenseModal(false)}
+                  className="text-slate-400 hover:text-slate-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleAddExpense} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Expense Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={expTitle}
+                    onChange={(e) => setExpTitle(e.target.value)}
+                    placeholder="e.g. WiFi Bill, Dish Soap, Olive Oil"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Total Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={expAmount}
+                    onChange={(e) => setExpAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                  <select
+                    value={expCategory}
+                    onChange={(e) => setExpCategory(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  >
+                    <option value="Groceries">Groceries</option>
+                    <option value="Utilities">Utilities & WiFi</option>
+                    <option value="Supplies">Household Supplies</option>
+                    <option value="Rent">Rent & Maintenance</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  This expense will be split equally among all {members.length} members.
+                </p>
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddExpenseModal(false)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md cursor-pointer"
+                  >
+                    Record & Split
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Add Chore */}
+        {showAddChoreModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-slate-900 text-base">Schedule New Chore</h3>
+                <button
+                  onClick={() => setShowAddChoreModal(false)}
+                  className="text-slate-400 hover:text-slate-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleAddChore} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Chore Description
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={choreTitle}
+                    onChange={(e) => setChoreTitle(e.target.value)}
+                    placeholder="e.g. Empty dishwasher, Take out recycling"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Frequency</label>
+                    <select
+                      value={choreFrequency}
+                      onChange={(e) => setChoreFrequency(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="bi_weekly">Bi-Weekly</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Due Day</label>
+                    <input
+                      type="text"
+                      value={choreDueDate}
+                      onChange={(e) => setChoreDueDate(e.target.value)}
+                      placeholder="e.g. Sunday"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Assign To Roommate
+                  </label>
+                  <select
+                    value={choreAssignee}
+                    onChange={(e) => setChoreAssignee(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="">Rotating / Anyone</option>
+                    {members.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.user_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddChoreModal(false)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md cursor-pointer"
+                  >
+                    Schedule Chore
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function HouseholdPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <HouseholdContent />
+    </Suspense>
+  );
+}
