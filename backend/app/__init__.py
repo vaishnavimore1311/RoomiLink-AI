@@ -22,17 +22,22 @@ def create_app(config_name=None):
     cors.init_app(app, origins=app.config.get("CORS_ORIGINS", ["http://localhost:3000"]), supports_credentials=True)
     jwt.init_app(app)
     
-    # Try connecting to database, gracefully falling back to SQLite if MySQL fails
-    try:
-        db.init_app(app)
-        with app.app_context():
-            db.engine.connect()
-    except Exception as e:
-        app.logger.warning(f"Primary database connection failed: {e}. Falling back to SQLite.")
-        fallback_path = os.path.join(app.root_path, "..", "instance", "roomilink_dev.db")
-        os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{fallback_path}"
-        db.init_app(app)
+    # Dual-mode database verification with graceful SQLite fallback
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if "mysql" in db_uri:
+        try:
+            from sqlalchemy import create_engine
+            test_engine = create_engine(db_uri, connect_args={"connect_timeout": 2})
+            with test_engine.connect():
+                pass
+            test_engine.dispose()
+        except Exception as e:
+            fallback_path = os.path.join(app.root_path, "..", "instance", "roomilink_dev.db")
+            os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
+            app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{fallback_path}"
+            app.logger.warning(f"MySQL connection failed ({e}). Engaged dual-mode SQLite fallback: {fallback_path}")
+
+    db.init_app(app)
 
     # Health check route
     @app.route("/api/v1/health", methods=["GET"])
