@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from app import db
 
 class Household(db.Model):
@@ -11,7 +11,7 @@ class Household(db.Model):
     address = db.Column(db.String(255), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False, index=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     members = db.relationship("HouseholdMember", backref="household", cascade="all, delete-orphan")
@@ -42,7 +42,7 @@ class HouseholdMember(db.Model):
     household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = db.Column(db.String(20), default="member")  # admin, member
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {
@@ -67,7 +67,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), default="Groceries")  # Groceries, Utilities, Rent, Supplies, Other
     split_type = db.Column(db.String(20), default="equal")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     payments = db.relationship("Payment", backref="expense", cascade="all, delete-orphan")
@@ -152,7 +152,7 @@ class Agreement(db.Model):
     version = db.Column(db.String(10), default="1.0")
     clauses = db.Column(db.Text, default="[]")  # JSON encoded list of clauses
     is_active = db.Column(db.Boolean, default=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def get_clauses(self):
         try:

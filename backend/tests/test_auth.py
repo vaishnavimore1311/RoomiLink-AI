@@ -46,7 +46,77 @@ def test_user_registration_and_login(client):
     assert user_data["email"] == "sarah@example.com"
     assert user_data["profile"]["full_name"] == "Sarah Jenkins"
 
-def test_lifestyle_preferences_update(client):
+def test_registration_duplicate_email(client):
+    payload = {
+        "email": "duplicate@example.com",
+        "password": "Password123!",
+        "full_name": "Original User"
+    }
+    res1 = client.post("/api/v1/auth/register", json=payload)
+    assert res1.status_code == 201
+
+    # Attempt to register with the exact same email
+    res2 = client.post("/api/v1/auth/register", json=payload)
+    assert res2.status_code == 409
+    assert "already exists" in res2.get_json()["message"]
+
+def test_registration_validation(client):
+    # Short password
+    res_short = client.post("/api/v1/auth/register", json={
+        "email": "short@example.com",
+        "password": "123",
+        "full_name": "Short Pwd"
+    })
+    assert res_short.status_code == 400
+    assert "at least 6 characters" in res_short.get_json()["message"]
+
+    # Missing full name
+    res_no_name = client.post("/api/v1/auth/register", json={
+        "email": "noname@example.com",
+        "password": "Password123!"
+    })
+    assert res_no_name.status_code == 400
+
+    # Missing email
+    res_no_email = client.post("/api/v1/auth/register", json={
+        "password": "Password123!",
+        "full_name": "No Email"
+    })
+    assert res_no_email.status_code == 400
+
+def test_login_invalid_credentials(client):
+    # Register first
+    client.post("/api/v1/auth/register", json={
+        "email": "user@example.com",
+        "password": "CorrectPassword!",
+        "full_name": "Real User"
+    })
+
+    # Incorrect password
+    res_wrong = client.post("/api/v1/auth/login", json={
+        "email": "user@example.com",
+        "password": "WrongPassword!"
+    })
+    assert res_wrong.status_code == 401
+    assert "Invalid email or password" in res_wrong.get_json()["message"]
+
+    # Nonexistent user
+    res_nonexistent = client.post("/api/v1/auth/login", json={
+        "email": "nonexistent@example.com",
+        "password": "SomePassword!"
+    })
+    assert res_nonexistent.status_code == 401
+
+def test_unauthorized_access(client):
+    # Attempting to access protected /me without token
+    res = client.get("/api/v1/auth/me")
+    assert res.status_code == 401
+
+    # Attempting with invalid token
+    res_invalid = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer invalid.token.value"})
+    assert res_invalid.status_code == 401
+
+def test_lifestyle_preferences_and_consent(client):
     reg_payload = {
         "email": "alex@example.com",
         "password": "Password123!",
@@ -68,3 +138,8 @@ def test_lifestyle_preferences_update(client):
     assert pref_data["sleep_schedule"] == "early_bird"
     assert pref_data["cleanliness_level"] == 4
     assert pref_data["budget_max"] == 950.0
+
+    # Test updating AI consent
+    res_consent = client.put("/api/v1/auth/consent", headers={"Authorization": f"Bearer {token}"}, json={"ai_consent_enabled": False})
+    assert res_consent.status_code == 200
+    assert res_consent.get_json()["ai_consent_enabled"] is False
