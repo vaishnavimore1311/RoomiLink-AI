@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from app import db
 
 class Property(db.Model):
@@ -13,7 +13,7 @@ class Property(db.Model):
     city = db.Column(db.String(100), nullable=False, index=True)
     neighborhood = db.Column(db.String(100), nullable=True)
     property_type = db.Column(db.String(50), default="apartment")  # apartment, house, condo
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     rooms = db.relationship("Room", backref="property", cascade="all, delete-orphan")
