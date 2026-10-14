@@ -17,7 +17,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updatePreferences: (pref: Partial<RoommatePreferences>) => Promise<{ success: boolean; error?: string }>;
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> => {
     setIsLoading(true);
     try {
       const res = await apiRequest<{ access_token: string; user: User }>("/auth/login", {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(res.data.access_token);
         setUser(res.data.user);
         setIsLoading(false);
-        return { success: true };
+        return { success: true, user: res.data.user };
       } else {
         setIsLoading(false);
         return { success: false, error: res.error || "Login failed. Please check your credentials." };

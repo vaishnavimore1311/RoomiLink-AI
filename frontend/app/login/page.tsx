@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,12 +16,16 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to appropriate portal
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard");
+    if (isAuthenticated && user) {
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -51,7 +55,11 @@ export default function LoginPage() {
     setIsSubmitting(false);
 
     if (result.success) {
-      router.push("/dashboard");
+      if (result.user?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } else {
       setErrorMessage(result.error || "Invalid email or password.");
     }
@@ -60,6 +68,12 @@ export default function LoginPage() {
   const handleDemoFill = () => {
     setEmail("sarah@example.com");
     setPassword("Password123!");
+    setErrorMessage(null);
+  };
+
+  const handleAdminDemoFill = () => {
+    setEmail("admin@roomilink.ai");
+    setPassword("AdminPassword123!");
     setErrorMessage(null);
   };
 
@@ -215,16 +229,32 @@ export default function LoginPage() {
           </form>
 
           {/* Demo Helper Box */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
+          <div className="mt-6 pt-5 border-t border-slate-100 space-y-2.5">
             <div className="rounded-xl bg-slate-50 p-3 border border-slate-200/80 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-700">Student Demo Account</p>
+                <p className="text-xs font-semibold text-slate-700">Seeker Demo Account</p>
                 <p className="text-[11px] text-slate-500">sarah@example.com / Password123!</p>
               </div>
               <button
                 type="button"
                 onClick={handleDemoFill}
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-sm transition-colors"
+              >
+                Auto-fill
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-purple-50/60 p-3 border border-purple-200/80 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <span>🛡️</span> Administrator Account
+                </p>
+                <p className="text-[11px] text-purple-700">admin@roomilink.ai / AdminPassword123!</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAdminDemoFill}
+                className="text-xs font-bold text-purple-700 hover:text-purple-900 bg-white px-2.5 py-1 rounded-md border border-purple-200 shadow-sm transition-colors"
               >
                 Auto-fill
               </button>

@@ -11,6 +11,12 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
+  const isAdmin = user?.role === "admin";
+
+  // Hide the public consumer navbar completely when inside the Admin Center
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -43,27 +49,44 @@ export default function Navbar() {
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              Find Rooms
+              {isAuthenticated ? (isAdmin ? "Browse Rooms" : "Find Rooms") : "Explore Rooms"}
             </Link>
+
+            {/* Roommates & Household Hub: Only shown to logged-in seekers */}
+            {isAuthenticated && !isAdmin && (
+              <>
+                <Link
+                  href="/roommates"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isActive("/roommates")
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  Find Roommates
+                </Link>
+                <Link
+                  href="/household"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isActive("/household")
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  Household Hub
+                </Link>
+              </>
+            )}
+
             <Link
-              href="/roommates"
+              href="/pricing"
               className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive("/roommates")
+                isActive("/pricing")
                   ? "text-indigo-600 bg-indigo-50"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              Find Roommates
-            </Link>
-            <Link
-              href="/household"
-              className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isActive("/household")
-                  ? "text-indigo-600 bg-indigo-50"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
-            >
-              Household Hub
+              Pricing
             </Link>
           </nav>
 
@@ -72,14 +95,15 @@ export default function Navbar() {
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-3">
                 <Link
-                  href="/dashboard"
+                  href={isAdmin ? "/admin" : "/dashboard"}
                   className="flex items-center space-x-2 py-1.5 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase">
+                  <div className={`w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-xs uppercase ${isAdmin ? "bg-purple-600" : "bg-indigo-600"}`}>
                     {user.profile?.full_name?.charAt(0) || user.email.charAt(0)}
                   </div>
                   <span className="text-sm font-medium text-slate-800">
                     {user.profile?.full_name || user.email.split("@")[0]}
+                    {isAdmin && <span className="ml-1.5 text-[10px] font-bold text-purple-600 uppercase bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">Admin</span>}
                   </span>
                 </Link>
                 <button
@@ -134,31 +158,46 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
           >
-            Find Rooms
+            {isAuthenticated ? (isAdmin ? "Browse Rooms" : "Find Rooms") : "Explore Rooms"}
           </Link>
+
+          {/* Seeker-only tools: Only for logged-in seekers */}
+          {isAuthenticated && !isAdmin && (
+            <>
+              <Link
+                href="/roommates"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                Find Roommates
+              </Link>
+              <Link
+                href="/household"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                Household Hub
+              </Link>
+            </>
+          )}
+
           <Link
-            href="/roommates"
+            href="/pricing"
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
           >
-            Find Roommates
+            Pricing
           </Link>
-          <Link
-            href="/household"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
-          >
-            Household Hub
-          </Link>
+
           <div className="pt-2 border-t border-slate-100 flex flex-col space-y-2">
             {isAuthenticated && user ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href={isAdmin ? "/admin" : "/dashboard"}
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-3 py-2 rounded-md text-base font-medium text-indigo-600 bg-indigo-50"
                 >
-                  Dashboard ({user.profile?.full_name || user.email})
+                  {isAdmin ? "Admin Center" : "Dashboard"} ({user.profile?.full_name || user.email})
                 </Link>
                 <button
                   onClick={() => {

@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import Footer from "@/components/Footer";
+
 export const metadata: Metadata = {
   title: "RoomiLink AI — Beyond Finding a Room, Building Compatible Shared Living",
   description:
@@ -37,9 +39,7 @@ export default function RootLayout({
             <Navbar />
           </Suspense>
           <main className="flex-1">{children}</main>
-          <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-            <p>&copy; 2026 RoomiLink AI. Beyond Finding a Room, Building Compatible Shared Living.</p>
-          </footer>
+          <Footer />
         </AuthProvider>
       </body>
     </html>
