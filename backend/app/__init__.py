@@ -116,3 +116,15 @@ def register_blueprints(app):
         app.register_blueprint(ai_bp, url_prefix="/api/v1/ai")
     except ImportError:
         pass
+
+    try:
+        from app.routes.subscription_routes import subscription_bp
+        app.register_blueprint(subscription_bp, url_prefix="/api/v1/subscriptions")
+    except ImportError:
+        pass
+
+    try:
+        from app.routes.admin_routes import admin_bp
+        app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
+    except ImportError:
+        pass

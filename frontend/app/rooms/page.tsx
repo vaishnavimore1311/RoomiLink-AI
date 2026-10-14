@@ -15,7 +15,7 @@ export default function RoomsPage() {
   // Filters state
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
-  const [maxRent, setMaxRent] = useState<number>(2000);
+  const [maxRent, setMaxRent] = useState<number>(35000);
   const [roomType, setRoomType] = useState<string>("all");
   const [selectedAmenity, setSelectedAmenity] = useState<string>("");
 
@@ -56,7 +56,7 @@ export default function RoomsPage() {
   const resetFilters = () => {
     setSearch("");
     setCity("");
-    setMaxRent(2000);
+    setMaxRent(35000);
     setRoomType("all");
     setSelectedAmenity("");
   };
@@ -78,8 +78,51 @@ export default function RoomsPage() {
             href="/rooms/new"
             className="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95 whitespace-nowrap"
           >
-            + List a Room
+            List a Spare Room
           </Link>
+        </div>
+
+        {/* Pune Hotspots Bar */}
+        <div className="bg-gradient-to-r from-indigo-50 to-teal-50/50 border border-indigo-100 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📍</span>
+            <div>
+              <span className="text-xs font-bold text-slate-900 block">Pune City Hubs:</span>
+              <span className="text-[11px] text-slate-500">Instant-filter verified rooms in Pune IT &amp; college localities</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "All Rooms", c: "", s: "" },
+              { label: "All Pune", c: "Pune", s: "" },
+              { label: "Hinjewadi", c: "Pune", s: "Hinjewadi" },
+              { label: "Baner", c: "Pune", s: "Baner" },
+              { label: "Wakad", c: "Pune", s: "Wakad" },
+              { label: "Viman Nagar", c: "Pune", s: "Viman Nagar" },
+              { label: "Kothrud", c: "Pune", s: "Kothrud" },
+              { label: "Kharadi", c: "Pune", s: "Kharadi" }
+            ].map((hotspot) => {
+              const isActive = (hotspot.label === "All Rooms" && !city && !search) ||
+                (hotspot.c === city && (hotspot.s === search || (!hotspot.s && !search)));
+              return (
+                <button
+                  key={hotspot.label}
+                  type="button"
+                  onClick={() => {
+                    setCity(hotspot.c);
+                    setSearch(hotspot.s);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {hotspot.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Filter Controls Bar */}
@@ -150,11 +193,10 @@ export default function RoomsPage() {
                 key={amenity}
                 type="button"
                 onClick={() => setSelectedAmenity(selectedAmenity === amenity ? "" : amenity)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                  selectedAmenity === amenity
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${selectedAmenity === amenity
                     ? "bg-indigo-600 text-white border-indigo-600"
                     : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 {amenity}
               </button>
@@ -241,9 +283,19 @@ export default function RoomsPage() {
                     </div>
                   )}
 
+                  {/* Featured Badge */}
+                  {room.is_featured && (
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black text-[10px] shadow-md uppercase tracking-wider flex items-center gap-1 z-10">
+                      ⭐ Featured
+                    </div>
+                  )}
+
                   {/* Rent Pill Badge */}
-                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm">
-                    ${room.rent_amount} <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
+                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm z-10">
+                    {room.rent_amount > 2000 || room.city?.toLowerCase().includes("pune")
+                      ? `₹${room.rent_amount.toLocaleString("en-IN")}`
+                      : `$${room.rent_amount}`}{" "}
+                    <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
                   </div>
 
                   {/* Room Type Tag */}

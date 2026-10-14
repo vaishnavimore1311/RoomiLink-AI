@@ -44,6 +44,7 @@ class Room(db.Model):
     rent_amount = db.Column(db.Float, nullable=False, index=True)
     deposit_amount = db.Column(db.Float, default=0.0)
     is_available = db.Column(db.Boolean, default=True)
+    is_featured = db.Column(db.Boolean, default=False)
     available_from = db.Column(db.String(50), default="Immediate")
     amenities = db.Column(db.Text, default="[]")  # JSON encoded list of amenities
     images = db.Column(db.Text, default="[]")     # JSON encoded list of image URLs
@@ -74,6 +75,7 @@ class Room(db.Model):
             "rent_amount": self.rent_amount,
             "deposit_amount": self.deposit_amount,
             "is_available": self.is_available,
+            "is_featured": bool(self.is_featured),
             "available_from": self.available_from,
             "amenities": self.get_amenities(),
             "images": self.get_images()

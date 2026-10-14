@@ -44,7 +44,7 @@ def get_rooms():
         )
 
     query = query.filter(Room.rent_amount >= min_rent, Room.rent_amount <= max_rent)
-    query = query.order_by(Room.rent_amount.asc())
+    query = query.order_by(Room.is_featured.desc(), Room.rent_amount.asc())
 
     results = query.all()
 
@@ -67,6 +67,7 @@ def get_rooms():
             "deposit_amount": room.deposit_amount,
             "available_from": room.available_from,
             "is_available": room.is_available,
+            "is_featured": bool(room.is_featured),
             "amenities": room.get_amenities(),
             "images": room.get_images(),
             "lister_id": prop.lister_id,
@@ -111,6 +112,7 @@ def get_room_detail(room_id):
         "deposit_amount": room.deposit_amount,
         "available_from": room.available_from,
         "is_available": room.is_available,
+        "is_featured": bool(room.is_featured),
         "amenities": room.get_amenities(),
         "images": room.get_images(),
         "lister_id": prop.lister_id,

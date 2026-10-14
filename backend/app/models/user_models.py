@@ -18,6 +18,7 @@ class User(db.Model):
     profile = db.relationship("Profile", backref="user", uselist=False, cascade="all, delete-orphan")
     preference = db.relationship("RoommatePreference", backref="user", uselist=False, cascade="all, delete-orphan")
     household_memberships = db.relationship("HouseholdMember", backref="user", lazy="dynamic")
+    subscriptions = db.relationship("UserSubscription", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -25,7 +26,15 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def get_active_subscription(self):
+        """Returns the user's currently active subscription, if any."""
+        for sub in self.subscriptions.all():
+            if sub.is_currently_active():
+                return sub
+        return None
+
     def to_dict(self):
+        active_sub = self.get_active_subscription()
         return {
             "id": self.id,
             "email": self.email,
@@ -34,7 +43,8 @@ class User(db.Model):
             "ai_consent_enabled": self.ai_consent_enabled,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "profile": self.profile.to_dict() if self.profile else None,
-            "preference": self.preference.to_dict() if self.preference else None
+            "preference": self.preference.to_dict() if self.preference else None,
+            "subscription": active_sub.to_dict() if active_sub else None
         }
 
 

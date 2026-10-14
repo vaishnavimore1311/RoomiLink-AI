@@ -12,6 +12,7 @@ export interface RoomListing {
   deposit_amount: number;
   available_from: string;
   is_available: boolean;
+  is_featured?: boolean;
   amenities: string[];
   images: string[];
   lister_id: number;
