@@ -95,7 +95,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="font-medium text-slate-500">Budget Range:</span>
-                  <span className="font-semibold text-slate-800">${pref?.budget_min || 400} - ${pref?.budget_max || 1200}</span>
+                  <span className="font-semibold text-slate-800">₹{(pref?.budget_min || 6000).toLocaleString("en-IN")} - ₹{(pref?.budget_max || 15000).toLocaleString("en-IN")}</span>
                 </div>
               </div>
             </div>

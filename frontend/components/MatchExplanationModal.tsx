@@ -93,7 +93,7 @@ export default function MatchExplanationModal({
                 <div>
                   <h4 className="font-semibold text-slate-900">{candidateName}</h4>
                   <p className="text-xs text-slate-500">
-                    {data.candidate.occupation || "Professional"} · {data.candidate.city || "Austin, TX"}
+                    {data.candidate.occupation || "Professional"} · {data.candidate.city || "Pune, Maharashtra"}
                   </p>
                   {data.candidate.bio && (
                     <p className="text-xs text-slate-600 mt-1 italic">

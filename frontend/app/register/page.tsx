@@ -212,7 +212,7 @@ export default function RegisterPage() {
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g., Austin, Boston, Seattle"
+                placeholder="e.g., Pune, Mumbai, Bengaluru"
                 className="block w-full px-3 py-2.5 sm:text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-all placeholder:text-slate-400 text-slate-900"
               />
             </div>

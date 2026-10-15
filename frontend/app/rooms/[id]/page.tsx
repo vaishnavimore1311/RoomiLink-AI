@@ -111,7 +111,7 @@ function RoomDetailContent() {
               className="w-full h-full object-cover transition-all duration-300"
             />
             <div className="absolute top-4 right-4 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-md text-slate-900 font-extrabold text-sm">
-              ${room.rent_amount} <span className="text-xs text-slate-500 font-normal">/ month</span>
+              ₹{room.rent_amount?.toLocaleString("en-IN")} <span className="text-xs text-slate-500 font-normal">/ month</span>
             </div>
             <div className="absolute bottom-4 left-4 px-3 py-1 rounded-lg bg-slate-900/80 backdrop-blur-md text-white text-xs font-semibold capitalize">
               {room.room_type} Room &bull; {room.property_type}
@@ -161,7 +161,7 @@ function RoomDetailContent() {
                 </div>
                 <div>
                   <span className="text-[11px] font-medium text-slate-400 uppercase">Deposit</span>
-                  <p className="text-sm font-bold text-slate-800 mt-0.5">${room.deposit_amount || 0}</p>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5">₹{(room.deposit_amount || 0).toLocaleString("en-IN")}</p>
                 </div>
                 <div>
                   <span className="text-[11px] font-medium text-slate-400 uppercase">Availability</span>
@@ -225,11 +225,11 @@ function RoomDetailContent() {
               <div className="space-y-3 text-xs text-slate-600">
                 <div className="flex justify-between">
                   <span>Monthly Rent:</span>
-                  <span className="font-bold text-slate-900">${room.rent_amount}</span>
+                  <span className="font-bold text-slate-900">₹{room.rent_amount?.toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Security Deposit:</span>
-                  <span className="font-bold text-slate-900">${room.deposit_amount}</span>
+                  <span className="font-bold text-slate-900">₹{room.deposit_amount?.toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Move-In Date:</span>

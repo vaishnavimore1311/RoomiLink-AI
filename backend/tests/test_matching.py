@@ -17,7 +17,7 @@ def create_user_with_prefs(client, email, name, role="seeker", **prefs):
         "password": "Password123!",
         "full_name": name,
         "role": role,
-        "city": "Austin"
+        "city": "Pune"
     })
     token = res.get_json()["access_token"]
     if prefs:
@@ -27,38 +27,38 @@ def create_user_with_prefs(client, email, name, role="seeker", **prefs):
 def test_roommate_matching_scoring_and_ranking(client):
     # 1. Create User A (Quiet early bird, high cleanliness)
     token_a = create_user_with_prefs(
-        client, "user_a@example.com", "Alice Walker",
+        client, "user_a@example.com", "Ananya Deshpande",
         sleep_schedule="early_bird",
         cleanliness_level=5,
         noise_tolerance="quiet_strict",
         smoking_status="non_smoker",
         guest_frequency="rarely",
-        budget_min=600.0,
-        budget_max=1100.0
+        budget_min=8000.0,
+        budget_max=14000.0
     )
 
     # 2. Create User B (Very compatible with Alice)
     create_user_with_prefs(
-        client, "user_b@example.com", "Bob Jenkins",
+        client, "user_b@example.com", "Pooja Kulkarni",
         sleep_schedule="early_bird",
         cleanliness_level=5,
         noise_tolerance="quiet_strict",
         smoking_status="non_smoker",
         guest_frequency="rarely",
-        budget_min=650.0,
-        budget_max=1050.0
+        budget_min=8500.0,
+        budget_max=13500.0
     )
 
     # 3. Create User C (Opposite of Alice: late night, lively, relaxed clean, smoker)
     create_user_with_prefs(
-        client, "user_c@example.com", "Charlie Night",
+        client, "user_c@example.com", "Rahul Shinde",
         sleep_schedule="night_owl",
         cleanliness_level=1,
         noise_tolerance="lively",
         smoking_status="smoker",
         guest_frequency="frequent",
-        budget_min=1400.0,
-        budget_max=2200.0
+        budget_min=18000.0,
+        budget_max=28000.0
     )
 
     # 4. Request matches from Alice's perspective
@@ -70,10 +70,10 @@ def test_roommate_matching_scoring_and_ranking(client):
     assert len(candidates) == 2
 
     # Bob should be ranked first with a significantly higher compatibility score than Charlie
-    assert candidates[0]["full_name"] == "Bob Jenkins"
+    assert candidates[0]["full_name"] == "Pooja Kulkarni"
     assert candidates[0]["compatibility_score"] >= 85
 
-    assert candidates[1]["full_name"] == "Charlie Night"
+    assert candidates[1]["full_name"] == "Rahul Shinde"
     assert candidates[1]["compatibility_score"] <= 45
 
     # 5. Check match breakdown endpoint
@@ -88,10 +88,10 @@ def test_roommate_matching_scoring_and_ranking(client):
     assert bd_data["breakdown"]["noise"] == 100
 
 def test_roommate_filter_by_city(client):
-    create_user_with_prefs(client, "austin@example.com", "Austin User", city="Austin")
-    create_user_with_prefs(client, "dallas@example.com", "Dallas User", city="Dallas")
+    create_user_with_prefs(client, "pune@example.com", "Pune User", city="Pune")
+    create_user_with_prefs(client, "mumbai@example.com", "Mumbai User", city="Mumbai")
 
-    res = client.get("/api/v1/matching/roommates?city=Austin")
+    res = client.get("/api/v1/matching/roommates?city=Pune")
     assert res.status_code == 200
     candidates = res.get_json()["data"]
-    assert any(c["full_name"] == "Austin User" for c in candidates)
+    assert any(c["full_name"] == "Pune User" for c in candidates)

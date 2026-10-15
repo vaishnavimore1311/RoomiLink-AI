@@ -19,10 +19,10 @@ def test_health_check(client):
 
 def test_user_registration_and_login(client):
     reg_payload = {
-        "email": "sarah@example.com",
+        "email": "sneha@example.com",
         "password": "Password123!",
-        "full_name": "Sarah Jenkins",
-        "city": "Austin",
+        "full_name": "Sneha Deshmukh",
+        "city": "Pune",
         "role": "seeker"
     }
     res_reg = client.post("/api/v1/auth/register", json=reg_payload)
@@ -32,7 +32,7 @@ def test_user_registration_and_login(client):
 
     # Test login
     login_payload = {
-        "email": "sarah@example.com",
+        "email": "sneha@example.com",
         "password": "Password123!"
     }
     res_login = client.post("/api/v1/auth/login", json=login_payload)
@@ -43,8 +43,8 @@ def test_user_registration_and_login(client):
     res_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert res_me.status_code == 200
     user_data = res_me.get_json()["user"]
-    assert user_data["email"] == "sarah@example.com"
-    assert user_data["profile"]["full_name"] == "Sarah Jenkins"
+    assert user_data["email"] == "sneha@example.com"
+    assert user_data["profile"]["full_name"] == "Sneha Deshmukh"
 
 def test_registration_duplicate_email(client):
     payload = {
@@ -118,10 +118,10 @@ def test_unauthorized_access(client):
 
 def test_lifestyle_preferences_and_consent(client):
     reg_payload = {
-        "email": "alex@example.com",
+        "email": "aditya@example.com",
         "password": "Password123!",
-        "full_name": "Alex Rivera",
-        "city": "Austin"
+        "full_name": "Aditya Kulkarni",
+        "city": "Pune"
     }
     res_reg = client.post("/api/v1/auth/register", json=reg_payload)
     token = res_reg.get_json()["access_token"]
@@ -130,14 +130,14 @@ def test_lifestyle_preferences_and_consent(client):
         "sleep_schedule": "early_bird",
         "cleanliness_level": 4,
         "noise_tolerance": "quiet_strict",
-        "budget_max": 950.0
+        "budget_max": 15000.0
     }
     res_pref = client.put("/api/v1/auth/preferences", headers={"Authorization": f"Bearer {token}"}, json=pref_payload)
     assert res_pref.status_code == 200
     pref_data = res_pref.get_json()["preferences"]
     assert pref_data["sleep_schedule"] == "early_bird"
     assert pref_data["cleanliness_level"] == 4
-    assert pref_data["budget_max"] == 950.0
+    assert pref_data["budget_max"] == 15000.0
 
     # Test updating AI consent
     res_consent = client.put("/api/v1/auth/consent", headers={"Authorization": f"Bearer {token}"}, json={"ai_consent_enabled": False})

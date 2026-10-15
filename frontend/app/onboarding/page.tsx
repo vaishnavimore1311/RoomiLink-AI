@@ -37,8 +37,8 @@ export default function OnboardingPage() {
       setDietaryPref(user.preference.dietary_pref || "any");
       setWorkRoutine(user.preference.work_routine || "hybrid");
       setPetTolerance(user.preference.pet_tolerance || "friendly");
-      setBudgetMin(user.preference.budget_min || 500);
-      setBudgetMax(user.preference.budget_max || 1200);
+      setBudgetMin(user.preference.budget_min || 6000);
+      setBudgetMax(user.preference.budget_max || 15000);
     }
   }, [isLoading, isAuthenticated, user, router]);
 
@@ -289,34 +289,36 @@ export default function OnboardingPage() {
               {/* Monthly Budget Range */}
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-2">
-                  7. Monthly Rent Budget Range (USD)
+                  7. Monthly Rent Budget Range (₹ INR)
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-slate-500 font-medium">Minimum Rent</span>
                     <div className="relative mt-1">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold">$</span>
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-bold">₹</span>
                       <input
                         type="number"
-                        min="200"
-                        max="5000"
+                        min="2000"
+                        max="60000"
+                        step="500"
                         value={budgetMin}
                         onChange={(e) => setBudgetMin(Number(e.target.value))}
-                        className="pl-7 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
+                        className="pl-8 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
                       />
                     </div>
                   </div>
                   <div>
                     <span className="text-xs text-slate-500 font-medium">Maximum Rent</span>
                     <div className="relative mt-1">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold">$</span>
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-bold">₹</span>
                       <input
                         type="number"
-                        min="200"
-                        max="5000"
+                        min="2000"
+                        max="60000"
+                        step="500"
                         value={budgetMax}
                         onChange={(e) => setBudgetMax(Number(e.target.value))}
-                        className="pl-7 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
+                        className="pl-8 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900"
                       />
                     </div>
                   </div>

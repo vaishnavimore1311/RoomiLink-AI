@@ -1,10 +1,10 @@
 """Demo Seed Script for RoomiLink AI.
 
 Provisions a complete, presentation-ready database populated with:
-- 4 diverse roommate profiles with 8-factor lifestyle vectors
-- 3 detailed property & room listings with photos and amenities
-- 1 active household workspace ('The Austin Tech Loft')
-- Pre-split shared expenses and pairwise debt ledger
+- 4 diverse Indian roommate profiles in Pune with 8-factor lifestyle vectors
+- 9 verified Pune property & room listings (Hinjewadi, Baner, Wakad, Viman Nagar, Kothrud, Kharadi, Koregaon Park, Aundh, Magarpatta)
+- 1 active household workspace ('Blue Ridge Co-Living Loft') in Hinjewadi, Pune
+- Pre-split shared household expenses in INR (₹) and pairwise debt ledger
 - Weekly chore rotation checklist
 - Formally synthesized 5-clause AI Living Agreement
 """
@@ -42,9 +42,9 @@ def seed_database():
             print("[+] Base roommate demo data already present.")
             return
 
-        print("[*] Provisioning 4 diverse demo roommates...")
+        print("[*] Provisioning 4 diverse demo roommates in Pune...")
 
-        # 1. Sarah Jenkins
+        # 1. Sneha Deshmukh (sarah@example.com)
         user_sarah = User(email="sarah@example.com", role="seeker", is_verified=True, ai_consent_enabled=True)
         user_sarah.set_password("Password123!")
         db.session.add(user_sarah)
@@ -52,12 +52,12 @@ def seed_database():
 
         prof_sarah = Profile(
             user_id=user_sarah.id,
-            full_name="Sarah Jenkins",
+            full_name="Sneha Deshmukh",
             age=24,
             gender="Female",
             occupation="UX/UI Designer",
-            city="Austin, TX",
-            bio="Quiet and organized designer working hybrid. Love cooking weekend pasta, keeping common areas tidy, and early morning runs around Lady Bird Lake.",
+            city="Pune, Maharashtra",
+            bio="Quiet and organized designer working hybrid at Hinjewadi Phase 1. Love cooking Maharashtrian dishes, keeping common spaces tidy, and weekend morning runs around Pashan Lake.",
             avatar_url="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
         )
         pref_sarah = RoommatePreference(
@@ -70,12 +70,12 @@ def seed_database():
             dietary_pref="any",
             work_routine="hybrid",
             pet_tolerance="friendly",
-            budget_min=700.0,
-            budget_max=1200.0
+            budget_min=9000.0,
+            budget_max=16000.0
         )
         db.session.add_all([prof_sarah, pref_sarah])
 
-        # 2. Alex Rivera
+        # 2. Aditya Kulkarni (alex@example.com)
         user_alex = User(email="alex@example.com", role="seeker", is_verified=True, ai_consent_enabled=True)
         user_alex.set_password("Password123!")
         db.session.add(user_alex)
@@ -83,11 +83,11 @@ def seed_database():
 
         prof_alex = Profile(
             user_id=user_alex.id,
-            full_name="Alex Rivera",
+            full_name="Aditya Kulkarni",
             age=26,
             gender="Male",
             occupation="Software Engineer",
-            city="Austin, TX",
+            city="Pune, Maharashtra",
             bio="Software engineer working remote 3 days a week. Very respectful of study quiet hours and always punctual with rent & grocery split bills.",
             avatar_url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150"
         )
@@ -101,12 +101,12 @@ def seed_database():
             dietary_pref="any",
             work_routine="hybrid",
             pet_tolerance="friendly",
-            budget_min=800.0,
-            budget_max=1300.0
+            budget_min=10000.0,
+            budget_max=18000.0
         )
         db.session.add_all([prof_alex, pref_alex])
 
-        # 3. Priya Sharma
+        # 3. Priya Sharma (priya@example.com)
         user_priya = User(email="priya@example.com", role="seeker", is_verified=True, ai_consent_enabled=True)
         user_priya.set_password("Password123!")
         db.session.add(user_priya)
@@ -118,8 +118,8 @@ def seed_database():
             age=23,
             gender="Female",
             occupation="Graduate Researcher",
-            city="Austin, TX",
-            bio="UT Austin biology grad researcher. Quiet studier during exam weeks, plant enthusiast, vegetarian, and big fan of chore checklists.",
+            city="Pune, Maharashtra",
+            bio="Savitribai Phule Pune University (SPPU) biology researcher. Quiet studier during exam weeks, plant enthusiast, vegetarian, and big fan of chore checklists.",
             avatar_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"
         )
         pref_priya = RoommatePreference(
@@ -132,12 +132,12 @@ def seed_database():
             dietary_pref="veg",
             work_routine="on_site",
             pet_tolerance="friendly",
-            budget_min=650.0,
-            budget_max=1050.0
+            budget_min=7500.0,
+            budget_max=13000.0
         )
         db.session.add_all([prof_priya, pref_priya])
 
-        # 4. Marcus Vance
+        # 4. Rohan Mehta (marcus@example.com)
         user_marcus = User(email="marcus@example.com", role="seeker", is_verified=True, ai_consent_enabled=True)
         user_marcus.set_password("Password123!")
         db.session.add(user_marcus)
@@ -145,12 +145,12 @@ def seed_database():
 
         prof_marcus = Profile(
             user_id=user_marcus.id,
-            full_name="Marcus Vance",
+            full_name="Rohan Mehta",
             age=27,
             gender="Male",
             occupation="Digital Marketer",
-            city="Austin, TX",
-            bio="Creative marketer & music producer. Night owl who loves social weekend gatherings, lively cooking sessions, and coffee chats.",
+            city="Pune, Maharashtra",
+            bio="Creative marketer near Kalyani Nagar. Night owl who loves weekend gatherings, lively cooking sessions, and Irani cafe chats.",
             avatar_url="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150"
         )
         pref_marcus = RoommatePreference(
@@ -163,24 +163,24 @@ def seed_database():
             dietary_pref="any",
             work_routine="remote",
             pet_tolerance="has_pet",
-            budget_min=900.0,
-            budget_max=1600.0
+            budget_min=11000.0,
+            budget_max=20000.0
         )
         db.session.add_all([prof_marcus, pref_marcus])
 
         db.session.commit()
         print("✅ 4 Roommates created successfully.")
 
-        # 5. Provision 3 Properties & Rooms
-        print("🏡 Provisioning 3 property listings...")
+        # 5. Provision 3 Properties & Rooms in Pune (Koregaon Park, Aundh, Magarpatta)
+        print("🏡 Provisioning 3 premium Pune property listings...")
 
         prop1 = Property(
             lister_id=user_sarah.id,
-            title="Sunny Modern Loft near UT Campus",
-            description="Spacious high-ceiling apartment located in Campus North with sun-drenched private room, in-unit laundry, and hardwood floors throughout.",
-            address="404 Speedway Ave",
-            city="Austin",
-            neighborhood="Campus North",
+            title="Bohemian 2BHK Room near Lane 7",
+            description="Charming high-ceiling apartment in Koregaon Park with sun-drenched private room, in-unit washing machine, tree-lined balcony, and walking distance to cafes.",
+            address="North Main Road, Lane 7, Koregaon Park",
+            city="Pune",
+            neighborhood="Koregaon Park",
             property_type="apartment"
         )
         db.session.add(prop1)
@@ -189,12 +189,12 @@ def seed_database():
         room1 = Room(
             property_id=prop1.id,
             room_type="private",
-            rent_amount=850.0,
-            deposit_amount=500.0,
+            rent_amount=12500.0,
+            deposit_amount=25000.0,
             available_from="Immediate",
             is_available=True
         )
-        room1.set_amenities(["High-Speed Wi-Fi", "In-Unit Laundry", "Central AC", "Dishwasher", "Furnished"])
+        room1.set_amenities(["High-Speed Wi-Fi", "In-Unit Laundry", "Central AC", "Cook Available", "Furnished", "Balcony"])
         room1.set_images([
             "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
             "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800"
@@ -203,11 +203,11 @@ def seed_database():
 
         prop2 = Property(
             lister_id=user_alex.id,
-            title="Charming Bungalow in South Congress",
-            description="Private master suite in a renovated craftsman home. Features private bathroom, patio with garden views, and walking distance to SoCo coffee shops.",
-            address="1420 S Congress Ave",
-            city="Austin",
-            neighborhood="South Congress",
+            title="Spacious Green Suite near ITI Road",
+            description="Private master suite in a peaceful residential locality near Parihar Chowk. Features attached washroom, balcony with garden views, and quick connectivity to Pune University.",
+            address="DP Road, Near Parihar Chowk, Aundh",
+            city="Pune",
+            neighborhood="Aundh",
             property_type="house"
         )
         db.session.add(prop2)
@@ -216,12 +216,12 @@ def seed_database():
         room2 = Room(
             property_id=prop2.id,
             room_type="private",
-            rent_amount=950.0,
-            deposit_amount=600.0,
-            available_from="Sep 1",
+            rent_amount=10500.0,
+            deposit_amount=20000.0,
+            available_from="Immediate",
             is_available=True
         )
-        room2.set_amenities(["High-Speed Wi-Fi", "Private Bathroom", "Backyard Garden", "In-Unit Laundry", "Parking"])
+        room2.set_amenities(["High-Speed Wi-Fi", "Private Bathroom", "Power Backup", "In-Unit Laundry", "2-Wheeler Parking"])
         room2.set_images([
             "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
             "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800"
@@ -230,11 +230,11 @@ def seed_database():
 
         prop3 = Property(
             lister_id=user_marcus.id,
-            title="Luxury High-Rise Suite in Downtown Austin",
-            description="Corner bedroom on 18th floor with floor-to-ceiling city skyline views. Building features rooftop pool, state-of-the-art gym, and 24/7 concierge.",
-            address="300 Colorado St",
-            city="Austin",
-            neighborhood="Downtown",
+            title="Cosy Executive Suite in Magarpatta Cybercity",
+            description="Modern room in gated township with 24/7 security. Walking distance to Accenture, BNY Mellon, and Seasons Mall. High-speed fiber internet and power backup.",
+            address="Tower 5, Roystonea, Magarpatta City, Hadapsar",
+            city="Pune",
+            neighborhood="Magarpatta",
             property_type="apartment"
         )
         db.session.add(prop3)
@@ -243,12 +243,12 @@ def seed_database():
         room3 = Room(
             property_id=prop3.id,
             room_type="private",
-            rent_amount=1200.0,
-            deposit_amount=800.0,
+            rent_amount=11500.0,
+            deposit_amount=22000.0,
             available_from="Immediate",
             is_available=True
         )
-        room3.set_amenities(["Rooftop Pool", "Fitness Center", "Concierge", "EV Charging", "Balcony Skyline View"])
+        room3.set_amenities(["Swimming Pool", "Gym", "Power Backup", "EV Charging", "Balcony", "24/7 Security"])
         room3.set_images([
             "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
             "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800"
@@ -256,14 +256,14 @@ def seed_database():
         db.session.add(room3)
 
         db.session.commit()
-        print("[+] 3 Property listings created.")
+        print("[+] 3 Pune Property listings created.")
 
-        # 6. Provision Active Household
-        print("[*] Provisioning Active Household ('The Austin Tech Loft')...")
+        # 6. Provision Active Household in Pune
+        print("[*] Provisioning Active Household ('Blue Ridge Co-Living Loft')...")
 
         household = Household(
-            name="The Austin Tech Loft",
-            address="404 West 6th Street, Apt 12B, Austin, TX",
+            name="Blue Ridge Co-Living Loft",
+            address="Tower 14, Blue Ridge Township, Phase 1, Hinjewadi, Pune",
             invite_code="A8F2C41D",
             created_by_id=user_sarah.id
         )
@@ -276,11 +276,11 @@ def seed_database():
         db.session.add_all([m_sarah, m_alex, m_priya])
         db.session.commit()
 
-        # 7. Add Shared Expenses & Debts
-        print("[*] Splitting shared household expenses...")
-        add_household_expense(household.id, user_sarah.id, "Gigabit Fiber Internet", 90.0, "Utilities", "equal")
-        add_household_expense(household.id, user_alex.id, "Costco Paper Towels & Dish Soap", 75.0, "Supplies", "equal")
-        add_household_expense(household.id, user_sarah.id, "Living Room Rug & Lamp", 120.0, "Supplies", "equal")
+        # 7. Add Shared Expenses & Debts (INR)
+        print("[*] Splitting shared household expenses in INR (₹)...")
+        add_household_expense(household.id, user_sarah.id, "Airtel Xstream Fiber 300Mbps", 1199.0, "Utilities", "equal")
+        add_household_expense(household.id, user_alex.id, "Monthly Grocery & Cleaning Supplies (Blinkit)", 2450.0, "Supplies", "equal")
+        add_household_expense(household.id, user_sarah.id, "Living Room Bean Bags & Study Lamp", 3500.0, "Supplies", "equal")
 
         # 8. Add Weekly Chores
         print("[*] Scheduling weekly chore rotations...")
@@ -295,7 +295,7 @@ def seed_database():
         c2 = Chore(
             household_id=household.id,
             assigned_to_id=user_alex.id,
-            title="Trash & Recycling Bin Rollout to Curb",
+            title="Trash & Recycling Bin Disposal",
             frequency="weekly",
             due_date="Tuesday",
             is_completed=True
@@ -313,8 +313,8 @@ def seed_database():
         # 9. Synthesize AI Living Agreement
         print("[*] Synthesizing AI Living Agreement...")
         members_meta = [
-            {"user_id": user_sarah.id, "full_name": "Sarah Jenkins", "preferences": pref_sarah.to_dict()},
-            {"user_id": user_alex.id, "full_name": "Alex Rivera", "preferences": pref_alex.to_dict()},
+            {"user_id": user_sarah.id, "full_name": "Sneha Deshmukh", "preferences": pref_sarah.to_dict()},
+            {"user_id": user_alex.id, "full_name": "Aditya Kulkarni", "preferences": pref_alex.to_dict()},
             {"user_id": user_priya.id, "full_name": "Priya Sharma", "preferences": pref_priya.to_dict()},
         ]
         ag_data = generate_fallback_agreement(household.name, members_meta)

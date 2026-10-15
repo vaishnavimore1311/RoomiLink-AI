@@ -142,12 +142,12 @@ export default function RoomsPage() {
 
             {/* City Filter */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">City / Location</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">City / Pune Locality</label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g., Austin, Boston"
+                placeholder="e.g., Hinjewadi, Baner, Pune"
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
               />
             </div>
@@ -171,13 +171,13 @@ export default function RoomsPage() {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-xs font-bold text-slate-700">Max Budget</label>
-                <span className="text-xs font-bold text-indigo-600">${maxRent} / mo</span>
+                <span className="text-xs font-bold text-indigo-600">₹{maxRent.toLocaleString("en-IN")} / mo</span>
               </div>
               <input
                 type="range"
-                min="300"
-                max="3000"
-                step="50"
+                min="3000"
+                max="40000"
+                step="500"
                 value={maxRent}
                 onChange={(e) => setMaxRent(Number(e.target.value))}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
@@ -188,7 +188,7 @@ export default function RoomsPage() {
           {/* Amenities Quick Filters */}
           <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-500 mr-1">Filter Amenity:</span>
-            {["Wi-Fi", "In-Unit Laundry", "AC", "Furnished", "Parking", "Dishwasher"].map((amenity) => (
+            {["High-Speed Wi-Fi", "Air Conditioner", "Power Backup", "Cook Available", "Washing Machine", "Gated Security"].map((amenity) => (
               <button
                 key={amenity}
                 type="button"
@@ -292,9 +292,7 @@ export default function RoomsPage() {
 
                   {/* Rent Pill Badge */}
                   <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm z-10">
-                    {room.rent_amount > 2000 || room.city?.toLowerCase().includes("pune")
-                      ? `₹${room.rent_amount.toLocaleString("en-IN")}`
-                      : `$${room.rent_amount}`}{" "}
+                    ₹{room.rent_amount.toLocaleString("en-IN")}{" "}
                     <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
                   </div>
 

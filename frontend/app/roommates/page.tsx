@@ -18,7 +18,7 @@ function RoommatesContent() {
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
   const [minScore, setMinScore] = useState<number>(50);
-  const [maxBudget, setMaxBudget] = useState<number>(2000);
+  const [maxBudget, setMaxBudget] = useState<number>(25000);
   const [selectedRoutine, setSelectedRoutine] = useState<string>("all");
 
   // Selected candidate for breakdown modal
@@ -63,7 +63,7 @@ function RoommatesContent() {
     setSearch("");
     setCity("");
     setMinScore(50);
-    setMaxBudget(2000);
+    setMaxBudget(25000);
     setSelectedRoutine("all");
   };
 
@@ -122,13 +122,13 @@ function RoommatesContent() {
             {/* City Input */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Target City
+                Target City / Pune Locality
               </label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Austin, Seattle, Boston..."
+                placeholder="e.g., Pune, Hinjewadi, Baner, Wakad..."
                 className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
               />
             </div>
@@ -154,13 +154,13 @@ function RoommatesContent() {
             <div>
               <div className="flex justify-between items-center text-xs font-semibold text-slate-700 mb-1.5">
                 <span>Max Budget Limit</span>
-                <span className="text-indigo-600 font-bold">${maxBudget}/mo</span>
+                <span className="text-indigo-600 font-bold">₹{maxBudget.toLocaleString("en-IN")}/mo</span>
               </div>
               <input
                 type="range"
-                min="400"
-                max="2500"
-                step="50"
+                min="3000"
+                max="35000"
+                step="500"
                 value={maxBudget}
                 onChange={(e) => setMaxBudget(Number(e.target.value))}
                 className="w-full accent-indigo-600"
@@ -263,7 +263,7 @@ function RoommatesContent() {
                           {c.full_name}
                         </h3>
                         <p className="text-xs text-slate-500">
-                          {c.occupation || "Young Professional"} · {c.city || "Austin, TX"}
+                          {c.occupation || "Young Professional"} · {c.city || "Pune, Maharashtra"}
                         </p>
                       </div>
                     </div>
@@ -293,7 +293,7 @@ function RoommatesContent() {
                       🔇 {c.lifestyle?.noise_tolerance?.replace("_", " ") || "Moderate"}
                     </span>
                     <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium">
-                      💵 ${c.lifestyle?.budget_min}-${c.lifestyle?.budget_max}
+                      💰 ₹{c.lifestyle?.budget_min?.toLocaleString("en-IN") || "5,000"} - ₹{c.lifestyle?.budget_max?.toLocaleString("en-IN") || "15,000"}
                     </span>
                   </div>
 

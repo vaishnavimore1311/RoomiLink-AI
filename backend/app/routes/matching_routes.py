@@ -93,7 +93,7 @@ def get_roommate_matches():
             "age": profile.age,
             "gender": profile.gender,
             "occupation": profile.occupation or "Professional / Student",
-            "city": profile.city or "Austin, TX",
+            "city": profile.city or "Pune, Maharashtra",
             "avatar_url": profile.avatar_url,
             "bio": profile.bio,
             "compatibility_score": score,

@@ -142,7 +142,7 @@ export default function NewRoomPage() {
                   required
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="e.g., Austin"
+                  placeholder="e.g., Pune"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none placeholder:text-slate-400"
                 />
               </div>
@@ -150,12 +150,12 @@ export default function NewRoomPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Neighborhood / District</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Neighborhood / Pune Locality</label>
                 <input
                   type="text"
                   value={neighborhood}
                   onChange={(e) => setNeighborhood(e.target.value)}
-                  placeholder="e.g., North Campus / Downtown"
+                  placeholder="e.g., Hinjewadi, Baner, Wakad, Kothrud"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none placeholder:text-slate-400"
                 />
               </div>
@@ -167,9 +167,9 @@ export default function NewRoomPage() {
                   onChange={(e) => setPropertyType(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
                 >
-                  <option value="apartment">Apartment</option>
-                  <option value="house">House</option>
-                  <option value="condo">Condo / Townhouse</option>
+                  <option value="apartment">Apartment / Flat</option>
+                  <option value="house">Row House / Villa</option>
+                  <option value="condo">Co-Living Studio</option>
                 </select>
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function NewRoomPage() {
           {/* Section 2: Room Specifics & Pricing */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100">
-              2. Room Specifics & Pricing
+              2. Room Specifics & Pricing (₹ INR)
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -190,32 +190,32 @@ export default function NewRoomPage() {
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
                 >
                   <option value="private">Private Room</option>
-                  <option value="shared">Shared Room</option>
+                  <option value="shared">Twin Sharing</option>
                   <option value="master">Master Bedroom (Ensuite)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Rent (USD)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Rent (₹ INR)</label>
                 <input
                   type="number"
-                  min="100"
+                  min="1000"
                   required
                   value={rentAmount}
                   onChange={(e) => setRentAmount(Number(e.target.value))}
-                  placeholder="750"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
+                  placeholder="8500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none font-semibold text-emerald-700"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Deposit (USD)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Security Deposit (₹ INR)</label>
                 <input
                   type="number"
                   min="0"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(Number(e.target.value))}
-                  placeholder="500"
+                  placeholder="15000"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
                 />
               </div>

@@ -345,7 +345,7 @@ function HouseholdContent() {
                     required
                     value={createAddress}
                     onChange={(e) => setCreateAddress(e.target.value)}
-                    placeholder="e.g. 742 Maple St, Apt 3B, Austin"
+                    placeholder="e.g. Flat 402, Blue Ridge, Phase 1, Hinjewadi, Pune"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
@@ -483,7 +483,7 @@ function HouseholdContent() {
                   You are Owed
                 </span>
                 <p className="text-3xl font-extrabold text-emerald-600">
-                  +${ledger?.total_owed_to_me.toFixed(2) || "0.00"}
+                  +₹{(ledger?.total_owed_to_me || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-[11px] text-slate-400">From roommates for shared bills</p>
               </div>
@@ -493,7 +493,7 @@ function HouseholdContent() {
                   You Owe
                 </span>
                 <p className="text-3xl font-extrabold text-amber-600">
-                  -${ledger?.total_i_owe.toFixed(2) || "0.00"}
+                  -₹{(ledger?.total_i_owe || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-[11px] text-slate-400">Your share of expenses paid by others</p>
               </div>
@@ -507,8 +507,8 @@ function HouseholdContent() {
                     (ledger?.net_balance || 0) >= 0 ? "text-indigo-600" : "text-amber-600"
                   }`}
                 >
-                  {(ledger?.net_balance || 0) >= 0 ? "+" : ""}$
-                  {ledger?.net_balance.toFixed(2) || "0.00"}
+                  {(ledger?.net_balance || 0) >= 0 ? "+" : "-"}₹
+                  {Math.abs(ledger?.net_balance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-[11px] text-slate-400">Overall household balance status</p>
               </div>
@@ -556,7 +556,7 @@ function HouseholdContent() {
                             <span className="text-indigo-700">{debt.to_user_name}</span>
                           </p>
                           <p className="text-base font-extrabold text-slate-800">
-                            ${debt.amount.toFixed(2)}
+                            ₹{debt.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
                         {isMyDebt && (
@@ -599,7 +599,7 @@ function HouseholdContent() {
                         </div>
                       </div>
                       <span className="font-bold text-slate-900 text-sm">
-                        ${exp.amount.toFixed(2)}
+                        ₹{exp.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   ))}
@@ -747,21 +747,22 @@ function HouseholdContent() {
                     required
                     value={expTitle}
                     onChange={(e) => setExpTitle(e.target.value)}
-                    placeholder="e.g. WiFi Bill, Dish Soap, Olive Oil"
+                    placeholder="e.g. WiFi Bill, Cook / Maid Salary, Groceries"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Total Amount ($)
+                    Total Amount (₹ INR)
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
+                    min="1"
                     required
                     value={expAmount}
                     onChange={(e) => setExpAmount(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="e.g. 1500"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>

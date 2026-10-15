@@ -29,7 +29,7 @@ def test_ai_living_agreement_generation_and_fallback(client):
     res_hh = client.post(
         "/api/v1/household/create",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "Willow Woods Co-Living", "address": "1200 Willow Ave, Austin"}
+        json={"name": "Baner Co-Living Society", "address": "Balewadi High Street, Baner, Pune"}
     )
     assert res_hh.status_code == 201
     hh_id = res_hh.get_json()["data"]["household"]["id"]

@@ -29,17 +29,17 @@ def test_create_and_get_room(client):
 
     # 2. Test create room with auth
     room_payload = {
-        "title": "Sunny Private Room near University",
-        "description": "Quiet, spacious room with hardwood floors and high-speed Wi-Fi.",
-        "address": "104 University Ave",
-        "city": "Austin",
-        "neighborhood": "Campus North",
+        "title": "Sunny Private Room in Blue Ridge Hinjewadi",
+        "description": "Quiet, spacious room with power backup, modular kitchen, and high-speed Wi-Fi.",
+        "address": "Tower 12, Blue Ridge, Phase 1",
+        "city": "Pune",
+        "neighborhood": "Hinjewadi",
         "property_type": "apartment",
         "room_type": "private",
-        "rent_amount": 750.0,
-        "deposit_amount": 500.0,
-        "available_from": "Aug 1",
-        "amenities": ["Wi-Fi", "In-Unit Laundry", "AC"],
+        "rent_amount": 8500.0,
+        "deposit_amount": 15000.0,
+        "available_from": "Immediate",
+        "amenities": ["Wi-Fi", "In-Unit Laundry", "Power Backup"],
         "images": ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"]
     }
     res_create = client.post(
@@ -55,25 +55,25 @@ def test_create_and_get_room(client):
     assert res_list.status_code == 200
     rooms = res_list.get_json()["data"]
     assert len(rooms) == 1
-    assert rooms[0]["title"] == "Sunny Private Room near University"
-    assert rooms[0]["rent_amount"] == 750.0
+    assert rooms[0]["title"] == "Sunny Private Room in Blue Ridge Hinjewadi"
+    assert rooms[0]["rent_amount"] == 8500.0
 
     # 4. Test filter by city matching
-    res_city = client.get("/api/v1/rooms?city=Austin")
+    res_city = client.get("/api/v1/rooms?city=Pune")
     assert res_city.status_code == 200
     assert len(res_city.get_json()["data"]) == 1
 
     # 5. Test filter by city not matching
-    res_other_city = client.get("/api/v1/rooms?city=Seattle")
+    res_other_city = client.get("/api/v1/rooms?city=Chennai")
     assert res_other_city.status_code == 200
     assert len(res_other_city.get_json()["data"]) == 0
 
     # 6. Test filter by budget
-    res_cheap = client.get("/api/v1/rooms?budget_max=600")
+    res_cheap = client.get("/api/v1/rooms?budget_max=6000")
     assert res_cheap.status_code == 200
     assert len(res_cheap.get_json()["data"]) == 0
 
-    res_affordable = client.get("/api/v1/rooms?budget_max=800")
+    res_affordable = client.get("/api/v1/rooms?budget_max=10000")
     assert res_affordable.status_code == 200
     assert len(res_affordable.get_json()["data"]) == 1
 
@@ -81,7 +81,7 @@ def test_create_and_get_room(client):
     res_detail = client.get(f"/api/v1/rooms/{room_id}")
     assert res_detail.status_code == 200
     detail = res_detail.get_json()["data"]
-    assert detail["title"] == "Sunny Private Room near University"
+    assert detail["title"] == "Sunny Private Room in Blue Ridge Hinjewadi"
     assert "Wi-Fi" in detail["amenities"]
 
     # 8. Test nonexistent room detail

@@ -26,7 +26,7 @@ def test_household_lifecycle_and_expenses(client):
     res_create = client.post(
         "/api/v1/household/create",
         headers={"Authorization": f"Bearer {token_admin}"},
-        json={"name": "Maple Street House", "address": "742 Maple St, Austin"}
+        json={"name": "Blue Ridge Tech Loft", "address": "Tower 14, Blue Ridge, Hinjewadi, Pune"}
     )
     assert res_create.status_code == 201
     hh_data = res_create.get_json()["data"]
