@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api";
+import RoomPhotoUploader from "@/components/RoomPhotoUploader";
 
 const PUNE_LOCALITIES = [
   "Hinjewadi",
@@ -71,7 +72,7 @@ export default function AdminNewRoomPage() {
     "2-Wheeler Parking",
     "Gated 24/7 Security"
   ]);
-  const [imageUrl, setImageUrl] = useState(SAMPLE_IMAGES[0]);
+  const [images, setImages] = useState<string[]>([SAMPLE_IMAGES[0]]);
 
   const toggleAmenity = (item: string) => {
     setSelectedAmenities((prev) =>
@@ -99,7 +100,7 @@ export default function AdminNewRoomPage() {
         is_available: true,
         is_featured: isFeatured,
         amenities: selectedAmenities,
-        images: [imageUrl.trim()]
+        images: images.length > 0 ? images : [SAMPLE_IMAGES[0]]
       };
 
       const res = await apiRequest("/admin/rooms", {
@@ -349,33 +350,35 @@ export default function AdminNewRoomPage() {
           </div>
         </div>
 
-        {/* Section 4: Photo URL */}
+        {/* Section 4: Property Photos & Upload */}
         <div className="space-y-4 pt-4 border-t border-slate-800/80">
-          <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">
-            4. Property Photo
-          </h2>
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Image URL
-            </label>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
-            />
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">
+              4. Property Photos &amp; Upload
+            </h2>
+            <span className="text-[11px] text-slate-400">Upload photos from computer or select presets</span>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            <span className="text-[11px] text-slate-500 shrink-0">Sample Photos:</span>
+          <RoomPhotoUploader
+            images={images}
+            onChange={setImages}
+            theme="dark"
+            maxPhotos={8}
+          />
+
+          <div className="flex items-center gap-2 overflow-x-auto pt-2">
+            <span className="text-[11px] text-slate-500 shrink-0">Preset Pune Samples:</span>
             {SAMPLE_IMAGES.map((img, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => setImageUrl(img)}
-                className={`relative w-12 h-10 rounded-lg overflow-hidden border shrink-0 ${
-                  imageUrl === img ? "border-indigo-500 ring-2 ring-indigo-500" : "border-slate-800 opacity-60 hover:opacity-100"
-                }`}
+                onClick={() => {
+                  if (!images.includes(img)) {
+                    setImages([...images, img]);
+                  }
+                }}
+                className="relative w-12 h-10 rounded-lg overflow-hidden border border-slate-800 opacity-70 hover:opacity-100 hover:border-indigo-500 shrink-0 transition-all"
+                title="Add sample photo to listing"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img} alt="thumb" className="w-full h-full object-cover" />

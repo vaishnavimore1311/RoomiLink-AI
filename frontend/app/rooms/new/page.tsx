@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import RoomPhotoUploader from "@/components/RoomPhotoUploader";
 
 export default function NewRoomPage() {
   const router = useRouter();
@@ -20,7 +21,9 @@ export default function NewRoomPage() {
   const [rentAmount, setRentAmount] = useState<number>(750);
   const [depositAmount, setDepositAmount] = useState<number>(500);
   const [availableFrom, setAvailableFrom] = useState("Immediate");
-  const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80");
+  const [images, setImages] = useState<string[]>([
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+  ]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(["Wi-Fi", "AC"]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +64,7 @@ export default function NewRoomPage() {
         deposit_amount: Number(depositAmount),
         available_from: availableFrom.trim() || "Immediate",
         amenities: selectedAmenities,
-        images: imageUrl.trim() ? [imageUrl.trim()] : [],
+        images: images.length > 0 ? images : ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80"],
       };
 
       const res = await apiRequest("/rooms", {
@@ -233,15 +236,8 @@ export default function NewRoomPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Photo Image URL</label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none placeholder:text-slate-400"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">Enter a direct image link (Unsplash or web image) to showcase your space.</p>
+              <label className="block text-xs font-semibold text-slate-700 mb-2">Room & Property Photos</label>
+              <RoomPhotoUploader images={images} onChange={setImages} theme="light" maxPhotos={8} />
             </div>
 
             <div>

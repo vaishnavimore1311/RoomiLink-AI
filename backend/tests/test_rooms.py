@@ -87,3 +87,29 @@ def test_create_and_get_room(client):
     # 8. Test nonexistent room detail
     res_not_found = client.get("/api/v1/rooms/99999")
     assert res_not_found.status_code == 404
+
+
+def test_upload_room_photo(client):
+    import io
+    token = register_and_get_token(client, email="photo_lister@example.com")
+
+    # 1. Test unauthorized upload
+    res_unauth = client.post("/api/v1/rooms/upload-photo")
+    assert res_unauth.status_code == 401
+
+    # 2. Test valid photo upload
+    data = {
+        "file": (io.BytesIO(b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"test image binary"), "bedroom.jpg")
+    }
+    res_upload = client.post(
+        "/api/v1/rooms/upload-photo",
+        headers={"Authorization": f"Bearer {token}"},
+        data=data,
+        content_type="multipart/form-data"
+    )
+    assert res_upload.status_code == 201
+    upload_res = res_upload.get_json()
+    assert upload_res["status"] == "success"
+    assert "url" in upload_res
+    assert upload_res["filename"].endswith(".jpg")
+

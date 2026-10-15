@@ -1,11 +1,20 @@
+import os
+import uuid
 import json
-from flask import Blueprint, request, jsonify
+from werkzeug.utils import secure_filename
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.property_models import Property, Room
 from app.models.user_models import User
 
 room_bp = Blueprint("rooms", __name__)
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @room_bp.route("", methods=["GET"])
 def get_rooms():
@@ -201,3 +210,78 @@ def create_room():
             "rent_amount": room.rent_amount
         }
     }), 201
+
+
+@room_bp.route("/upload-photo", methods=["POST"])
+@jwt_required()
+def upload_room_photo():
+    """Upload a single image file for a room/property listing."""
+    if "file" not in request.files and "image" not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded. Key 'file' or 'image' is required."}), 400
+
+    file = request.files.get("file") or request.files.get("image")
+    if not file or file.filename == "":
+        return jsonify({"status": "error", "message": "No file selected."}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({
+            "status": "error",
+            "message": f"Invalid format. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        }), 400
+
+    upload_folder = os.path.join(current_app.root_path, "..", "uploads", "rooms")
+    os.makedirs(upload_folder, exist_ok=True)
+
+    safe_name = f"{uuid.uuid4().hex[:10]}_{secure_filename(file.filename)}"
+    file_path = os.path.join(upload_folder, safe_name)
+    file.save(file_path)
+
+    photo_url = f"{request.host_url.rstrip('/')}/api/v1/rooms/uploads/{safe_name}"
+
+    return jsonify({
+        "status": "success",
+        "message": "Photo uploaded successfully.",
+        "filename": safe_name,
+        "url": photo_url
+    }), 201
+
+
+@room_bp.route("/upload-photos", methods=["POST"])
+@jwt_required()
+def upload_multiple_room_photos():
+    """Upload multiple image files at once for a room/property listing."""
+    files = request.files.getlist("files") or request.files.getlist("file")
+    if not files or len(files) == 0:
+        return jsonify({"status": "error", "message": "No files uploaded."}), 400
+
+    upload_folder = os.path.join(current_app.root_path, "..", "uploads", "rooms")
+    os.makedirs(upload_folder, exist_ok=True)
+
+    uploaded_urls = []
+    for file in files:
+        if file and file.filename and allowed_file(file.filename):
+            safe_name = f"{uuid.uuid4().hex[:10]}_{secure_filename(file.filename)}"
+            file_path = os.path.join(upload_folder, safe_name)
+            file.save(file_path)
+            photo_url = f"{request.host_url.rstrip('/')}/api/v1/rooms/uploads/{safe_name}"
+            uploaded_urls.append(photo_url)
+
+    if not uploaded_urls:
+        return jsonify({
+            "status": "error",
+            "message": f"No valid images found. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        }), 400
+
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully uploaded {len(uploaded_urls)} photo(s).",
+        "urls": uploaded_urls
+    }), 201
+
+
+@room_bp.route("/uploads/<path:filename>", methods=["GET"])
+def serve_uploaded_room_image(filename):
+    """Serve uploaded room photos publicly."""
+    upload_folder = os.path.join(current_app.root_path, "..", "uploads", "rooms")
+    return send_from_directory(upload_folder, filename)
+
