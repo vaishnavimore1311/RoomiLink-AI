@@ -21,10 +21,10 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to rooms
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/dashboard");
+      router.push("/rooms");
     }
   }, [isAuthenticated, router]);
 

@@ -16,12 +16,16 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to appropriate portal
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard");
+    if (isAuthenticated && user) {
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/rooms");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -51,7 +55,11 @@ export default function LoginPage() {
     setIsSubmitting(false);
 
     if (result.success) {
-      router.push("/dashboard");
+      if (result.user?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/rooms");
+      }
     } else {
       setErrorMessage(result.error || "Invalid email or password.");
     }
