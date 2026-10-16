@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,8 +18,8 @@ export default function LoginPage() {
 
   // If already authenticated, redirect to appropriate portal
   useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.role === "admin") {
+    if (isAuthenticated) {
+      if (user?.role === "admin") {
         router.push("/admin");
       } else {
         router.push("/rooms");
