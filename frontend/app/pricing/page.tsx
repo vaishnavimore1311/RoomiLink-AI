@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import { SubscriptionPlan } from "@/types/subscription";
+import RazorpayPaymentModal from "@/components/RazorpayPaymentModal";
 
 export default function PricingPage() {
   const router = useRouter();
@@ -16,6 +17,18 @@ export default function PricingPage() {
   const [subscribingSlug, setSubscribingSlug] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Razorpay Payment Modal State
+  const [selectedPlanForPayment, setSelectedPlanForPayment] = useState<SubscriptionPlan | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+  const [lastPaymentReceipt, setLastPaymentReceipt] = useState<{
+    payment_id: string;
+    order_id: string;
+    amount_inr: number;
+    method: string;
+    paid_at: string;
+    plan_name: string;
+  } | null>(null);
 
   useEffect(() => {
     async function loadPlans() {
@@ -45,31 +58,22 @@ export default function PricingPage() {
       return;
     }
 
-    setSubscribingSlug(plan.slug);
     setError(null);
-    setSuccessMessage(null);
+    setSelectedPlanForPayment(plan);
+    setIsPaymentModalOpen(true);
+  };
 
-    try {
-      const res = await apiRequest("/subscriptions/checkout", {
-        method: "POST",
-        requiresAuth: true,
-        body: {
-          plan_slug: plan.slug,
-          payment_reference: `demo_pay_${Date.now()}`
-        }
-      });
-
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setSuccessMessage(`Congratulations! You are now subscribed to ${plan.name}.`);
-        await refreshUser();
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to process subscription.");
-    } finally {
-      setSubscribingSlug(null);
-    }
+  const handlePaymentSuccess = async (receipt: {
+    payment_id: string;
+    order_id: string;
+    amount_inr: number;
+    method: string;
+    paid_at: string;
+    plan_name: string;
+  }) => {
+    setLastPaymentReceipt(receipt);
+    setSuccessMessage(`Payment verified via Razorpay! You are now subscribed to ${receipt.plan_name}.`);
+    await refreshUser();
   };
 
   const filteredPlans = plans.filter((p) => p.target_role === activeTab);
@@ -219,12 +223,31 @@ export default function PricingPage() {
 
         {/* Security / FAQ footer */}
         <div className="text-center pt-8 border-t border-slate-200 text-xs text-slate-500 max-w-xl mx-auto space-y-2">
-          <p className="font-semibold text-slate-700">🔒 Safe &amp; Secure Payments</p>
+          <p className="font-semibold text-slate-700">🔒 Safe &amp; Secure Payments Powered by Razorpay</p>
           <p>
             Subscriptions can be cancelled at any time from your account settings without penalties. All prices include applicable taxes.
           </p>
+          {lastPaymentReceipt && (
+            <div className="pt-2">
+              <button
+                onClick={() => setIsPaymentModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 transition-colors text-xs"
+              >
+                <span>🧾</span> View Last Razorpay Receipt ({lastPaymentReceipt.payment_id})
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Razorpay Interactive Checkout Modal */}
+      <RazorpayPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        plan={selectedPlanForPayment}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 }
+

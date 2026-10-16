@@ -57,3 +57,36 @@ export interface SubscriberRecord {
   payment_reference?: string;
   created_at?: string;
 }
+
+export interface RazorpayOrderResponse {
+  status: string;
+  order_id: string;
+  amount: number;
+  amount_inr: number;
+  currency: string;
+  receipt: string;
+  key_id: string;
+  plan: SubscriptionPlan;
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+}
+
+export interface RazorpayPaymentDetails {
+  payment_id: string;
+  order_id: string;
+  amount_inr: number;
+  method: string;
+  currency: string;
+  paid_at: string;
+}
+
+export interface RazorpayVerifyResponse {
+  status: string;
+  message: string;
+  data: UserSubscription;
+  payment_details: RazorpayPaymentDetails;
+}
+

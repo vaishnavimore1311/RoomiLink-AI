@@ -20,6 +20,10 @@ class Config:
     # CORS
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     
+    # Razorpay Payment Gateway (Demo / Live)
+    RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_RoomiLinkDemo2026")
+    RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "roomilink_secret_demo_key_9988")
+    
     # Database Configuration with MySQL priority and SQLite fallback
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
@@ -37,6 +41,8 @@ class Config:
             SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_fallback_path}"
     else:
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_fallback_path}"
+
+
 
 
 class DevelopmentConfig(Config):

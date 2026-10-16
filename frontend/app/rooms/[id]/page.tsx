@@ -4,14 +4,19 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { RoomListing } from "@/types/room";
+import { SubscriptionPlan } from "@/types/subscription";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import RazorpayPaymentModal from "@/components/RazorpayPaymentModal";
 
 function RoomDetailContent() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   const roomId = params?.id;
+
+  const isProSubscriber =
+    user?.role === "admin" || (user as any)?.subscription?.is_active === true;
 
   const [room, setRoom] = useState<RoomListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +25,15 @@ function RoomDetailContent() {
 
   const [inquirySent, setInquirySent] = useState(false);
   const [inquiryMessage, setInquiryMessage] = useState("");
+  const [isSendingInquiry, setIsSendingInquiry] = useState(false);
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+
+  // Paywall & Razorpay Modal States
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [proSeekerPlan, setProSeekerPlan] = useState<SubscriptionPlan | null>(null);
+  const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -42,16 +55,60 @@ function RoomDetailContent() {
       }
     };
 
+    const fetchPlans = async () => {
+      try {
+        const res = await apiRequest<{ data: SubscriptionPlan[] }>("/subscriptions/plans?role=seeker", {
+          requiresAuth: false,
+        });
+        if (res.data?.data) {
+          const proPlan = res.data.data.find((p) => p.slug === "pro_seeker");
+          if (proPlan) setProSeekerPlan(proPlan);
+        }
+      } catch (e) {
+        console.error("Failed to load subscription plans:", e);
+      }
+    };
+
     fetchRoom();
+    fetchPlans();
   }, [roomId]);
 
-  const handleSendInquiry = (e: React.FormEvent) => {
+  const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInquirySent(true);
-    setTimeout(() => {
-      setShowInquiryModal(false);
-    }, 2000);
+    if (!inquiryMessage.trim()) return;
+
+    setIsSendingInquiry(true);
+    setInquiryError(null);
+
+    try {
+      const res = await apiRequest(`/rooms/${roomId}/inquiry`, {
+        method: "POST",
+        requiresAuth: true,
+        body: { message: inquiryMessage.trim() },
+      });
+
+      if (res.error) {
+        if (res.data?.code === "SUBSCRIPTION_REQUIRED") {
+          setShowInquiryModal(false);
+          setShowPaywallModal(true);
+        } else {
+          setInquiryError(res.error);
+        }
+      } else {
+        setInquirySent(true);
+        setTimeout(() => {
+          setShowInquiryModal(false);
+          setInquirySent(false);
+          setInquiryMessage("");
+        }, 2200);
+      }
+    } catch (err: any) {
+      setInquiryError(err.message || "Failed to deliver inquiry message.");
+    } finally {
+      setIsSendingInquiry(false);
+    }
   };
+
 
   if (isLoading) {
     return (
@@ -237,33 +294,158 @@ function RoomDetailContent() {
                 </div>
               </div>
 
+              {/* Subscription Status Tag */}
+              {isProSubscriber ? (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
+                  <span className="text-emerald-600 font-bold">✓</span>
+                  <span><strong>Pro Seeker Active:</strong> Direct messaging &amp; priority contact unlocked.</span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 text-xs text-indigo-900 space-y-1">
+                  <div className="flex items-center justify-between font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <span>🔒</span> Direct Host Contact
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-600 text-white font-extrabold">
+                      Pro Seeker
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Direct messaging is exclusively reserved for subscribed members.
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   if (!isAuthenticated) {
-                    router.push("/login");
+                    router.push(`/login?redirect=${encodeURIComponent(`/rooms/${roomId}`)}`);
+                  } else if (!isProSubscriber) {
+                    setShowPaywallModal(true);
                   } else {
                     setShowInquiryModal(true);
                   }
                 }}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+                className={`w-full py-3.5 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                  isProSubscriber
+                    ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100"
+                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-purple-200"
+                }`}
               >
-                Contact Host / Send Inquiry
+                {isProSubscriber ? (
+                  <>
+                    <span>✉️</span>
+                    <span>Contact Host / Send Inquiry</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔒</span>
+                    <span>Contact Host (Unlock with Pro)</span>
+                  </>
+                )}
               </button>
 
               <p className="text-[11px] text-slate-400 text-center leading-relaxed">
-                Protected by RoomiLink AI verified listings policy. No deposit required before viewing.
+                Protected by RoomiLink AI verified listings policy. No brokerage fees.
               </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Pro Seeker Paywall Modal */}
+      {showPaywallModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5 animate-scaleUp">
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl shadow-md shadow-indigo-200">
+                🔒
+              </div>
+              <button
+                onClick={() => setShowPaywallModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                ✨ Pro Seeker Member Perk
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                Direct Host Messaging is Locked
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                To protect verified Pune landlords from spam and maintain trust, sending direct inquiries is exclusive to <strong>Pro Seeker</strong> subscribers.
+              </p>
+            </div>
+
+            {/* Included Benefits */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-xs text-slate-700">
+              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                What you unlock today:
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                <span>Unlimited direct inquiries to {room.lister_name} &amp; all verified hosts</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                <span>Priority response badge &amp; verified trust verification</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                <span>Zero brokerage fees with direct viewing schedule</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                <span>AI Living Agreement drafting &amp; roommate mediation tools</span>
+              </div>
+            </div>
+
+            {/* Price & Razorpay Action */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-baseline justify-between px-1">
+                <span className="text-xs text-slate-500 font-medium">Pro Seeker Membership:</span>
+                <span className="text-lg font-black text-slate-900">
+                  ₹499 <span className="text-xs font-normal text-slate-500">/ month</span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowPaywallModal(false);
+                  setShowPaymentModal(true);
+                }}
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all flex items-center justify-center gap-2"
+              >
+                <span>⚡</span>
+                <span>Unlock Direct Contact via Razorpay (₹499)</span>
+              </button>
+
+              <div className="text-center">
+                <Link
+                  href="/pricing"
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold"
+                >
+                  View all membership plans &rarr;
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Inquiry Modal */}
       {showInquiryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-scaleUp">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-lg text-slate-900">Message {room.lister_name}</h3>
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Message {room.lister_name}</h3>
+                <p className="text-[11px] text-slate-500">Direct Priority Inquiry for {room.title}</p>
+              </div>
               <button
                 onClick={() => setShowInquiryModal(false)}
                 className="text-slate-400 hover:text-slate-600 text-xl font-bold"
@@ -272,13 +454,28 @@ function RoomDetailContent() {
               </button>
             </div>
 
+            {unlockedJustNow && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                <span>🎉</span>
+                <span>Pro Seeker Unlocked! You can now send direct inquiries.</span>
+              </div>
+            )}
+
+            {inquiryError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                {inquiryError}
+              </div>
+            )}
+
             {inquirySent ? (
-              <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center space-y-2">
+              <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center space-y-2 animate-fadeIn">
                 <div className="w-10 h-10 rounded-full bg-emerald-200 text-emerald-800 mx-auto flex items-center justify-center font-bold">
                   ✓
                 </div>
-                <p className="font-bold text-sm">Inquiry Sent Successfully!</p>
-                <p className="text-xs text-emerald-600">The host will respond to your email shortly.</p>
+                <p className="font-bold text-sm">Inquiry Delivered Successfully!</p>
+                <p className="text-xs text-emerald-600">
+                  {room.lister_name} has received your direct message and verified contact details.
+                </p>
               </div>
             ) : (
               <form onSubmit={handleSendInquiry} className="space-y-4">
@@ -291,7 +488,7 @@ function RoomDetailContent() {
                     required
                     value={inquiryMessage}
                     onChange={(e) => setInquiryMessage(e.target.value)}
-                    placeholder={`Hi ${room.lister_name}, I'm interested in viewing this room. I am a student/professional looking to move in around ${room.available_from}...`}
+                    placeholder={`Hi ${room.lister_name}, I am interested in viewing this room. I work hybrid in Pune and would like to schedule a viewing...`}
                     className="w-full p-3 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none placeholder:text-slate-400"
                   />
                 </div>
@@ -306,9 +503,17 @@ function RoomDetailContent() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100"
+                    disabled={isSendingInquiry}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-100 flex items-center gap-2"
                   >
-                    Send Message
+                    {isSendingInquiry ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <span>Send Message &rarr;</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -316,6 +521,36 @@ function RoomDetailContent() {
           </div>
         </div>
       )}
+
+      {/* Razorpay Interactive Checkout Modal */}
+      <RazorpayPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        plan={
+          proSeekerPlan || {
+            id: 2,
+            name: "Pro Seeker",
+            slug: "pro_seeker",
+            target_role: "seeker",
+            price_inr: 499.0,
+            billing_cycle: "monthly",
+            features: [
+              "Direct instant contact with roommates & landlords",
+              "Unlimited AI match explanations",
+              "Verified Seeker priority trust badge",
+              "Generate & export official AI Living Agreements",
+            ],
+            is_active: true,
+          }
+        }
+        onSuccess={async () => {
+          await refreshUser();
+          setUnlockedJustNow(true);
+          setShowPaymentModal(false);
+          setShowInquiryModal(true);
+        }}
+      />
+
     </div>
   );
 }
