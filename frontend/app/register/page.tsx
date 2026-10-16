@@ -24,7 +24,7 @@ export default function RegisterPage() {
   // If already authenticated, redirect to dashboard
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/dashboard");
+      router.push("/rooms");
     }
   }, [isAuthenticated, router]);
 

@@ -22,7 +22,7 @@ export default function LoginPage() {
       if (user.role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/dashboard");
+        router.push("/rooms");
       }
     }
   }, [isAuthenticated, user, router]);
@@ -58,7 +58,7 @@ export default function LoginPage() {
       if (result.user?.role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/dashboard");
+        router.push("/rooms");
       }
     } else {
       setErrorMessage(result.error || "Invalid email or password.");

@@ -62,7 +62,7 @@ export default function OnboardingPage() {
     setIsSaving(false);
 
     if (result.success) {
-      router.push("/dashboard");
+      router.push("/rooms");
     } else {
       setErrorMessage(result.error || "Failed to save lifestyle habits.");
     }
