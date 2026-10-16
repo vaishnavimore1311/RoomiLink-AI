@@ -13,10 +13,14 @@ export async function apiRequest<T = any>(
 ): Promise<{ data?: T; error?: string; status: number }> {
   const { requiresAuth = true, headers = {}, body, ...rest } = options;
 
-  const defaultHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(headers as Record<string, string>),
-  };
+  const defaultHeaders: Record<string, string> = {};
+
+  // Do not set Content-Type for FormData; the browser sets multipart/form-data with the correct boundary
+  if (!(body instanceof FormData)) {
+    defaultHeaders["Content-Type"] = "application/json";
+  }
+
+  Object.assign(defaultHeaders, headers as Record<string, string>);
 
   if (requiresAuth && typeof window !== "undefined") {
     const token = localStorage.getItem("roomilink_token");
