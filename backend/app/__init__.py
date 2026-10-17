@@ -27,7 +27,7 @@ def create_app(config_name=None):
     if "mysql" in db_uri:
         try:
             from sqlalchemy import create_engine
-            test_engine = create_engine(db_uri, connect_args={"connect_timeout": 2})
+            test_engine = create_engine(db_uri, connect_args={"connect_timeout": 10})
             with test_engine.connect():
                 pass
             test_engine.dispose()
@@ -35,6 +35,7 @@ def create_app(config_name=None):
             fallback_path = os.path.join(app.root_path, "..", "instance", "roomilink_dev.db")
             os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
             app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{fallback_path}"
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
             app.logger.warning(f"MySQL connection failed ({e}). Engaged dual-mode SQLite fallback: {fallback_path}")
 
     db.init_app(app)
