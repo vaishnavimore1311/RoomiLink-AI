@@ -19,11 +19,7 @@ export default function LoginPage() {
   // If already authenticated, redirect to appropriate portal
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push("/rooms");
     }
   }, [isAuthenticated, user, router]);
 
