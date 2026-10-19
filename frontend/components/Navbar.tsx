@@ -83,7 +83,7 @@ export default function Navbar() {
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                   }`}
                 >
-                  Inquiries
+                  {user?.role === "seeker" ? "My Inquiries" : user?.role === "lister" ? "Guest Inquiries" : "Inquiries"}
                 </Link>
               </>
             )}
@@ -194,7 +194,7 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
               >
-                Inquiries Inbox
+                {user?.role === "seeker" ? "My Inquiries" : user?.role === "lister" ? "Guest Inquiries" : "Inquiries Inbox"}
               </Link>
             </>
           )}
