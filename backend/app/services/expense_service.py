@@ -134,19 +134,25 @@ def calculate_ledger(household_id: int, current_user_id: int = None) -> Dict[str
 
 
 def settle_debt_between_users(household_id: int, from_user_id: int, to_user_id: int) -> int:
-    """Mark all unsettled payments from user A to user B as settled."""
+    """Settle mutual debt between two users, marking opposing obligations as settled."""
     expenses = Expense.query.filter_by(household_id=household_id).all()
     expense_ids = [e.id for e in expenses]
 
     if not expense_ids:
         return 0
 
+    # Retrieve all unsettled payments in both directions between the two users
     payments = Payment.query.filter(
         Payment.expense_id.in_(expense_ids),
-        Payment.from_user_id == from_user_id,
-        Payment.to_user_id == to_user_id,
-        Payment.is_settled == False
+        Payment.is_settled == False,
+        db.or_(
+            db.and_(Payment.from_user_id == from_user_id, Payment.to_user_id == to_user_id),
+            db.and_(Payment.from_user_id == to_user_id, Payment.to_user_id == from_user_id)
+        )
     ).all()
+
+    if not payments:
+        return 0
 
     now = datetime.now(timezone.utc)
     for p in payments:
