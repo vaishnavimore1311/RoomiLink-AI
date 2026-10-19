@@ -80,3 +80,44 @@ class Room(db.Model):
             "amenities": self.get_amenities(),
             "images": self.get_images()
         }
+
+
+class RoomInquiry(db.Model):
+    __tablename__ = "room_inquiries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    host_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(30), default="pending")  # pending, replied, archived
+    is_priority = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    room = db.relationship("Room", backref=db.backref("inquiries", cascade="all, delete-orphan"))
+    sender = db.relationship("User", foreign_keys=[sender_id])
+    host = db.relationship("User", foreign_keys=[host_id])
+
+    def to_dict(self):
+        sender_profile = self.sender.profile if self.sender else None
+        return {
+            "id": self.id,
+            "room_id": self.room_id,
+            "room_title": self.room.property.title if self.room and self.room.property else "Room Listing",
+            "room_city": self.room.property.city if self.room and self.room.property else "",
+            "room_neighborhood": self.room.property.neighborhood if self.room and self.room.property else "",
+            "room_rent": self.room.rent_amount if self.room else 0,
+            "room_type": self.room.room_type if self.room else "private",
+            "sender_id": self.sender_id,
+            "sender_name": sender_profile.full_name if sender_profile else (self.sender.email.split("@")[0] if self.sender else "Seeker"),
+            "sender_email": self.sender.email if self.sender else "",
+            "sender_occupation": sender_profile.occupation if sender_profile else "Seeker",
+            "sender_avatar": sender_profile.avatar_url if sender_profile else None,
+            "host_id": self.host_id,
+            "message": self.message,
+            "status": self.status,
+            "is_priority": self.is_priority,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+

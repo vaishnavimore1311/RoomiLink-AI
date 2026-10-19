@@ -75,8 +75,19 @@ export default function Navbar() {
                 >
                   Household Hub
                 </Link>
+                <Link
+                  href="/dashboard?tab=inquiries"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isActive("/dashboard")
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  Inquiries
+                </Link>
               </>
             )}
+
 
             <Link
               href="/pricing"
@@ -178,8 +189,16 @@ export default function Navbar() {
               >
                 Household Hub
               </Link>
+              <Link
+                href="/dashboard?tab=inquiries"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                Inquiries Inbox
+              </Link>
             </>
           )}
+
 
           <Link
             href="/pricing"

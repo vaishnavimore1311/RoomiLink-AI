@@ -5,8 +5,9 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models.property_models import Property, Room
+from app.models.property_models import Property, Room, RoomInquiry
 from app.models.user_models import User
+
 
 room_bp = Blueprint("rooms", __name__)
 
@@ -249,20 +250,78 @@ def send_room_inquiry(room_id):
     lister = db.session.get(User, prop.lister_id)
     lister_name = lister.profile.full_name if lister and lister.profile else "Host"
 
+    # Persist the inquiry
+    inquiry = RoomInquiry(
+        room_id=room.id,
+        sender_id=user_id,
+        host_id=prop.lister_id,
+        message=message,
+        status="pending",
+        is_priority=True
+    )
+    db.session.add(inquiry)
+    db.session.commit()
+
     return jsonify({
         "status": "success",
         "message": f"Your inquiry has been successfully sent to {lister_name}!",
-        "data": {
-            "room_id": room.id,
-            "property_title": prop.title,
-            "lister_id": prop.lister_id,
-            "lister_name": lister_name,
-            "sender_name": user.profile.full_name if user.profile else user.email,
-            "sender_email": user.email,
-            "message": message,
-            "is_priority_pro": True
-        }
+        "data": inquiry.to_dict()
+    }), 201
+
+
+@room_bp.route("/inquiries/received", methods=["GET"])
+@jwt_required()
+def get_received_inquiries():
+    """Retrieve all room inquiries received by the authenticated host."""
+    user_id = int(get_jwt_identity())
+    inquiries = RoomInquiry.query.filter_by(host_id=user_id).order_by(RoomInquiry.created_at.desc()).all()
+    return jsonify({
+        "status": "success",
+        "count": len(inquiries),
+        "data": [inq.to_dict() for inq in inquiries]
     }), 200
+
+
+@room_bp.route("/inquiries/sent", methods=["GET"])
+@jwt_required()
+def get_sent_inquiries():
+    """Retrieve all room inquiries sent by the authenticated user."""
+    user_id = int(get_jwt_identity())
+    inquiries = RoomInquiry.query.filter_by(sender_id=user_id).order_by(RoomInquiry.created_at.desc()).all()
+    return jsonify({
+        "status": "success",
+        "count": len(inquiries),
+        "data": [inq.to_dict() for inq in inquiries]
+    }), 200
+
+
+@room_bp.route("/inquiries/<int:inquiry_id>/status", methods=["PATCH"])
+@jwt_required()
+def update_inquiry_status(inquiry_id):
+    """Update status of an inquiry (e.g., mark as replied or archived)."""
+    user_id = int(get_jwt_identity())
+    inquiry = db.session.get(RoomInquiry, inquiry_id)
+    if not inquiry:
+        return jsonify({"status": "error", "message": "Inquiry not found."}), 404
+
+    user = db.session.get(User, user_id)
+    if inquiry.host_id != user_id and user.role != "admin":
+        return jsonify({"status": "error", "message": "Unauthorized to update this inquiry."}), 403
+
+    data = request.get_json() or {}
+    new_status = data.get("status", "replied").strip().lower()
+    if new_status not in ["pending", "replied", "archived"]:
+        return jsonify({"status": "error", "message": "Invalid status. Must be pending, replied, or archived."}), 400
+
+    inquiry.status = new_status
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": f"Inquiry status updated to {new_status}.",
+        "data": inquiry.to_dict()
+    }), 200
+
 
 
 @room_bp.route("/upload-photo", methods=["POST"])
