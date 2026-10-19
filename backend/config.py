@@ -33,14 +33,18 @@ class Config:
     # Ensure instance directory exists
     sqlite_fallback_path.parent.mkdir(parents=True, exist_ok=True)
     
-    if db_url and "mysql" in db_url:
-        try:
-            # Test MySQL connection parameters if possible
-            SQLALCHEMY_DATABASE_URI = db_url
-        except Exception:
-            SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_fallback_path}"
+    if db_url and ("mysql" in db_url or "postgresql" in db_url):
+        SQLALCHEMY_DATABASE_URI = db_url
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+            "pool_recycle": 280,
+            "pool_timeout": 20,
+        }
     else:
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_fallback_path}"
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_pre_ping": True,
+        }
 
 
 
@@ -52,6 +56,7 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
 
 
 class ProductionConfig(Config):
