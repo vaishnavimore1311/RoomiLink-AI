@@ -9,7 +9,8 @@ This document tracks all active issues created for the latest feature requiremen
 | **#35** | [Feature] Restrict room and property listing creation to subscribed users only | **Vaishnavi More** | `@vaishnavimore1311` | Paywall / Permissions | [#35](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/35) | Assigned |
 | **#36** | [Bug/UX] Update brand logo click behavior to navigate within app when logged in | **Shweta** | `@Shwetadhanawade13` | Navigation / UX | [#36](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/36) | Assigned |
 | **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Assigned |
-| **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Assigned |
+| **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40)) |
+
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Assigned |
 
 ---
