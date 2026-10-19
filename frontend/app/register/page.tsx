@@ -21,10 +21,10 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to rooms
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/dashboard");
+      router.push("/rooms");
     }
   }, [isAuthenticated, router]);
 
@@ -74,8 +74,8 @@ export default function RegisterPage() {
     setIsSubmitting(false);
 
     if (result.success) {
-      // Redirect to onboarding so new roommates set their lifestyle habits
-      router.push("/onboarding");
+      // Redirect to rooms after successful registration
+      router.push("/rooms");
     } else {
       setErrorMessage(result.error || "Registration failed. An account with this email may already exist.");
     }
