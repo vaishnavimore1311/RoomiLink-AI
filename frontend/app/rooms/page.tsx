@@ -7,10 +7,11 @@ import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export default function RoomsPage() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [rooms, setRooms] = useState<RoomListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Filters state
   const [search, setSearch] = useState("");
@@ -18,6 +19,23 @@ export default function RoomsPage() {
   const [maxRent, setMaxRent] = useState<number>(35000);
   const [roomType, setRoomType] = useState<string>("all");
   const [selectedAmenity, setSelectedAmenity] = useState<string>("");
+
+  // Determine if user is eligible to create listings
+  const isEligibleToList =
+    user?.role === "admin" ||
+    (user?.subscription?.is_active === true);
+
+  const handleListRoomClick = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      // Not logged in — let the link navigate to /rooms/new which will redirect to /login
+      return;
+    }
+    if (!isEligibleToList) {
+      e.preventDefault();
+      setShowUpgradeModal(true);
+    }
+    // If eligible, let the link navigate normally
+  };
 
   const fetchRooms = useCallback(async () => {
     setIsLoading(true);
@@ -64,6 +82,40 @@ export default function RoomsPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Subscription Upgrade Modal */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full mx-4 space-y-5 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-extrabold text-slate-900">Subscription Required</h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Listing rooms and properties is available to subscribed users only.
+                Subscribe to a plan to start connecting with verified tenants.
+              </p>
+              <div className="flex flex-col gap-2.5">
+                <Link
+                  href="/pricing"
+                  className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+                >
+                  View Plans &amp; Subscribe
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="w-full px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header & CTA */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
           <div>
@@ -76,6 +128,7 @@ export default function RoomsPage() {
           </div>
           <Link
             href="/rooms/new"
+            onClick={handleListRoomClick}
             className="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95 whitespace-nowrap"
           >
             List a Spare Room

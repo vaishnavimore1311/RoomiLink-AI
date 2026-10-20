@@ -142,6 +142,22 @@ def get_room_detail(room_id):
 def create_room():
     """Create a new property and room listing."""
     user_id = int(get_jwt_identity())
+
+    # Subscription enforcement: only subscribed users or admins may create listings
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    active_sub = user.get_active_subscription()
+    if user.role != "admin" and not active_sub:
+        return jsonify({
+            "status": "error",
+            "code": "SUBSCRIPTION_REQUIRED",
+            "message": "An active subscription is required to list rooms and properties. Please subscribe to a plan first.",
+            "required_plan": "any",
+            "upgrade_url": "/pricing"
+        }), 403
+
     data = request.get_json() or {}
 
     title = data.get("title", "").strip()

@@ -25,6 +25,8 @@ export interface RoommatePreferences {
   budget_max: number;
 }
 
+import { UserSubscription } from "./subscription";
+
 export interface User {
   id: number;
   email: string;
@@ -35,6 +37,7 @@ export interface User {
   household_id?: number | null;
   profile?: UserProfile | null;
   preference?: RoommatePreferences | null;
+  subscription?: UserSubscription | null;
 }
 
 export interface AuthResponse {
