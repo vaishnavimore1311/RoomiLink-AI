@@ -210,3 +210,136 @@ def test_upload_room_photo(client):
     assert upload_res["status"] == "success"
     assert "url" in upload_res
     assert upload_res["filename"].endswith(".jpg")
+
+
+def test_exact_address_hidden_for_unsubscribed_and_guests(client):
+    """Exact street address is masked for guests, unsubscribed users, and expired subscriptions."""
+    host_token = register_and_get_token(client, email="host_address_test@example.com")
+    subscribe_user("host_address_test@example.com")
+
+    # Create listing
+    room_payload = {
+        "title": "Private Room in Wakad Near D-Mart",
+        "description": "Furnished room with attached washroom.",
+        "address": "Flat 504, Pride Purple Palms, Wakad",
+        "city": "Pune",
+        "neighborhood": "Wakad",
+        "property_type": "apartment",
+        "room_type": "private",
+        "rent_amount": 9500.0,
+        "deposit_amount": 18000.0,
+        "amenities": ["Wi-Fi", "Geyser"]
+    }
+    res_create = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {host_token}"},
+        json=room_payload
+    )
+    assert res_create.status_code == 201
+    room_id = res_create.get_json()["data"]["room_id"]
+
+    # 1. Unauthenticated guest request
+    res_guest_list = client.get("/api/v1/rooms")
+    assert res_guest_list.status_code == 200
+    guest_room = [r for r in res_guest_list.get_json()["data"] if r["id"] == room_id][0]
+    assert guest_room["address"] == "🔒 Subscribed Members Only"
+    assert guest_room["is_address_locked"] is True
+    # Basic details must remain accessible
+    assert guest_room["city"] == "Pune"
+    assert guest_room["neighborhood"] == "Wakad"
+    assert guest_room["rent_amount"] == 9500.0
+
+    res_guest_detail = client.get(f"/api/v1/rooms/{room_id}")
+    assert res_guest_detail.status_code == 200
+    guest_detail = res_guest_detail.get_json()["data"]
+    assert guest_detail["address"] == "🔒 Subscribed Members Only"
+    assert guest_detail["is_address_locked"] is True
+    assert guest_detail["city"] == "Pune"
+    assert guest_detail["neighborhood"] == "Wakad"
+
+    # 2. Authenticated unsubscribed user request
+    unsub_token = register_and_get_token(client, email="unsub_viewer@example.com")
+    res_unsub_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {unsub_token}"}
+    )
+    assert res_unsub_detail.status_code == 200
+    unsub_detail = res_unsub_detail.get_json()["data"]
+    assert unsub_detail["address"] == "🔒 Subscribed Members Only"
+    assert unsub_detail["is_address_locked"] is True
+
+    # 3. User with expired subscription
+    expired_token = register_and_get_token(client, email="expired_viewer@example.com")
+    subscribe_user("expired_viewer@example.com", status="expired", expires_in_days=-10)
+    res_expired_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {expired_token}"}
+    )
+    assert res_expired_detail.status_code == 200
+    expired_detail = res_expired_detail.get_json()["data"]
+    assert expired_detail["address"] == "🔒 Subscribed Members Only"
+    assert expired_detail["is_address_locked"] is True
+
+
+def test_exact_address_visible_for_subscribers_admin_and_host(client):
+    """Subscribed users, admins, and the listing host receive the exact street address."""
+    host_token = register_and_get_token(client, email="host_visible_test@example.com")
+    subscribe_user("host_visible_test@example.com")
+
+    exact_address = "Flat 504, Pride Purple Palms, Wakad"
+    room_payload = {
+        "title": "Private Room in Wakad",
+        "description": "Spacious flat.",
+        "address": exact_address,
+        "city": "Pune",
+        "neighborhood": "Wakad",
+        "property_type": "apartment",
+        "room_type": "private",
+        "rent_amount": 9500.0,
+        "deposit_amount": 18000.0
+    }
+    res_create = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {host_token}"},
+        json=room_payload
+    )
+    assert res_create.status_code == 201
+    room_id = res_create.get_json()["data"]["room_id"]
+
+    # 1. Subscribed seeker sees exact address
+    sub_token = register_and_get_token(client, email="subscriber_viewer@example.com")
+    subscribe_user("subscriber_viewer@example.com", status="active", expires_in_days=30)
+
+    res_sub_list = client.get("/api/v1/rooms", headers={"Authorization": f"Bearer {sub_token}"})
+    assert res_sub_list.status_code == 200
+    sub_room = [r for r in res_sub_list.get_json()["data"] if r["id"] == room_id][0]
+    assert sub_room["address"] == exact_address
+    assert sub_room["is_address_locked"] is False
+
+    res_sub_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {sub_token}"}
+    )
+    assert res_sub_detail.status_code == 200
+    assert res_sub_detail.get_json()["data"]["address"] == exact_address
+    assert res_sub_detail.get_json()["data"]["is_address_locked"] is False
+
+    # 2. Admin user sees exact address
+    admin_token = register_and_get_token(client, email="admin_viewer@example.com", role="admin")
+    res_admin_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert res_admin_detail.status_code == 200
+    assert res_admin_detail.get_json()["data"]["address"] == exact_address
+    assert res_admin_detail.get_json()["data"]["is_address_locked"] is False
+
+    # 3. Host sees their own property's exact address
+    res_host_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {host_token}"}
+    )
+    assert res_host_detail.status_code == 200
+    assert res_host_detail.get_json()["data"]["address"] == exact_address
+    assert res_host_detail.get_json()["data"]["is_address_locked"] is False
+

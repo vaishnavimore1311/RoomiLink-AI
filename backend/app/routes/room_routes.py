@@ -18,8 +18,20 @@ def allowed_file(filename):
 
 
 @room_bp.route("", methods=["GET"])
+@jwt_required(optional=True)
 def get_rooms():
     """Retrieve room listings with optional query filters."""
+    current_user_id = get_jwt_identity()
+    current_user = None
+    if current_user_id:
+        try:
+            current_user = db.session.get(User, int(current_user_id))
+        except (ValueError, TypeError):
+            current_user = None
+
+    user_has_active_sub = bool(current_user and current_user.get_active_subscription())
+    user_is_admin = bool(current_user and current_user.role == "admin")
+
     city = request.args.get("city", "").strip()
     room_type = request.args.get("room_type", "").strip()
     search = request.args.get("search", "").strip()
@@ -63,12 +75,21 @@ def get_rooms():
         lister = db.session.get(User, prop.lister_id)
         lister_name = lister.profile.full_name if lister and lister.profile else "Verified Host"
 
+        can_view_address = (
+            user_is_admin or
+            user_has_active_sub or
+            (current_user is not None and current_user.id == prop.lister_id)
+        )
+        display_address = prop.address if can_view_address else "🔒 Subscribed Members Only"
+        is_address_locked = not can_view_address
+
         rooms_data.append({
             "id": room.id,
             "property_id": prop.id,
             "title": prop.title,
             "description": prop.description,
-            "address": prop.address,
+            "address": display_address,
+            "is_address_locked": is_address_locked,
             "city": prop.city,
             "neighborhood": prop.neighborhood,
             "property_type": prop.property_type,
@@ -93,6 +114,7 @@ def get_rooms():
 
 
 @room_bp.route("/<int:room_id>", methods=["GET"])
+@jwt_required(optional=True)
 def get_room_detail(room_id):
     """Retrieve detailed information for a single room."""
     record = db.session.query(Room, Property).join(Property, Room.property_id == Property.id).filter(Room.id == room_id).first()
@@ -108,12 +130,32 @@ def get_room_detail(room_id):
     lister_name = lister.profile.full_name if lister and lister.profile else "Verified Host"
     lister_email = lister.email if lister else ""
 
+    current_user_id = get_jwt_identity()
+    current_user = None
+    if current_user_id:
+        try:
+            current_user = db.session.get(User, int(current_user_id))
+        except (ValueError, TypeError):
+            current_user = None
+
+    user_has_active_sub = bool(current_user and current_user.get_active_subscription())
+    user_is_admin = bool(current_user and current_user.role == "admin")
+
+    can_view_address = (
+        user_is_admin or
+        user_has_active_sub or
+        (current_user is not None and current_user.id == prop.lister_id)
+    )
+    display_address = prop.address if can_view_address else "🔒 Subscribed Members Only"
+    is_address_locked = not can_view_address
+
     room_detail = {
         "id": room.id,
         "property_id": prop.id,
         "title": prop.title,
         "description": prop.description,
-        "address": prop.address,
+        "address": display_address,
+        "is_address_locked": is_address_locked,
         "city": prop.city,
         "neighborhood": prop.neighborhood,
         "property_type": prop.property_type,

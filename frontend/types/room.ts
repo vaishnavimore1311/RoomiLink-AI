@@ -4,6 +4,7 @@ export interface RoomListing {
   title: string;
   description: string;
   address: string;
+  is_address_locked?: boolean;
   city: string;
   neighborhood?: string;
   property_type: string;
