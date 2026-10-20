@@ -9,7 +9,7 @@ import RoomPhotoUploader from "@/components/RoomPhotoUploader";
 
 export default function NewRoomPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -28,6 +28,11 @@ export default function NewRoomPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Determine if user is eligible to create listings
+  const isEligible =
+    user?.role === "admin" ||
+    (user?.subscription?.is_active === true);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -75,15 +80,63 @@ export default function NewRoomPage() {
 
       if (res.status === 201) {
         router.push("/rooms");
+      } else if (res.status === 403 && (res.data as { code?: string } | undefined)?.code === "SUBSCRIPTION_REQUIRED") {
+        setErrorMessage(
+          "An active subscription is required to list rooms. Please subscribe to a plan first."
+        );
       } else {
         setErrorMessage(res.error || "Failed to create room listing.");
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // ── Subscription paywall view ──
+  if (!authLoading && isAuthenticated && !isEligible) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto">
+          <Link href="/rooms" className="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors">
+            &larr; Back to all rooms
+          </Link>
+
+          <div className="mt-6 bg-white border border-slate-200/80 rounded-3xl shadow-sm p-8 sm:p-12 text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              Subscription Required
+            </h1>
+            <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              Listing rooms and properties is a premium feature available to subscribers.
+              Upgrade your plan to start connecting with verified tenants and roommates.
+            </p>
+
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+              >
+                View Plans &amp; Subscribe
+              </Link>
+              <Link
+                href="/rooms"
+                className="inline-flex items-center justify-center px-6 py-3 border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Browse Rooms Instead
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
