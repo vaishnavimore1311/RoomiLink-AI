@@ -73,7 +73,8 @@ def calculate_ledger(household_id: int, current_user_id: int = None) -> Dict[str
             "total_owed_to_me": 0.0,
             "net_balance": 0.0,
             "debts": [],
-            "recent_expenses": []
+            "recent_expenses": [],
+            "category_breakdown": {}
         }
 
     unsettled_payments = Payment.query.filter(
@@ -124,12 +125,18 @@ def calculate_ledger(household_id: int, current_user_id: int = None) -> Dict[str
 
     recent_expenses = [e.to_dict() for e in sorted(expenses, key=lambda x: x.created_at or datetime.min, reverse=True)[:15]]
 
+    category_breakdown: Dict[str, float] = {}
+    for e in expenses:
+        cat = e.category or "Other"
+        category_breakdown[cat] = round(category_breakdown.get(cat, 0.0) + float(e.amount), 2)
+
     return {
         "total_i_owe": round(total_i_owe, 2),
         "total_owed_to_me": round(total_owed_to_me, 2),
         "net_balance": round(total_owed_to_me - total_i_owe, 2),
         "debts": debts_list,
-        "recent_expenses": recent_expenses
+        "recent_expenses": recent_expenses,
+        "category_breakdown": category_breakdown
     }
 
 

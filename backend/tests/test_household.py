@@ -214,3 +214,86 @@ def test_mutual_debt_settlement_prevents_inversion(client):
     assert data_a_after["total_owed_to_me"] == 0.0
     assert data_a_after["net_balance"] == 0.0
 
+
+def test_aggregate_category_breakdown(client):
+    """Verify aggregate category breakdown in ledger.
+
+    Tests:
+    1. No expenses returns an empty category_breakdown dict.
+    2. Multiple expenses in the same category are aggregated correctly.
+    3. Different categories maintain separate totals.
+    4. Existing ledger behavior (debts, recent_expenses, balances) still works.
+    """
+    token = register_user(client, "catadmin@example.com", "Cat Admin")
+
+    # 1. Create household
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Category Test Flat", "address": "Koregaon Park, Pune"}
+    )
+    assert res_create.status_code == 201
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+
+    # 2. Check no expenses returns an empty category_breakdown
+    res_empty = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert res_empty.status_code == 200
+    assert res_empty.get_json()["data"]["category_breakdown"] == {}
+
+    # 3. Add multiple expenses in the same category (Groceries: 120 + 80 = 200)
+    res_exp1 = client.post(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Supermarket", "amount": 120.0, "category": "Groceries"}
+    )
+    assert res_exp1.status_code == 201
+
+    res_exp2 = client.post(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Vegetables", "amount": 80.0, "category": "Groceries"}
+    )
+    assert res_exp2.status_code == 201
+
+    # 4. Add expenses in different categories (Utilities: 300, Supplies: 45.50)
+    res_exp3 = client.post(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "WiFi Bill", "amount": 300.0, "category": "Utilities"}
+    )
+    assert res_exp3.status_code == 201
+
+    res_exp4 = client.post(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Cleaning Mop", "amount": 45.50, "category": "Supplies"}
+    )
+    assert res_exp4.status_code == 201
+
+    # 5. Fetch ledger and verify aggregate category breakdown
+    res_ledger = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert res_ledger.status_code == 200
+    data = res_ledger.get_json()["data"]
+
+    # Verify category_breakdown totals
+    cb = data["category_breakdown"]
+    assert cb["Groceries"] == 200.0
+    assert cb["Utilities"] == 300.0
+    assert cb["Supplies"] == 45.50
+    assert len(cb) == 3
+
+    # Verify existing ledger behavior and fields are intact
+    assert "recent_expenses" in data
+    assert len(data["recent_expenses"]) == 4
+    assert "debts" in data
+    assert "total_i_owe" in data
+    assert "total_owed_to_me" in data
+    assert "net_balance" in data
+
+
