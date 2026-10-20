@@ -361,13 +361,45 @@ export default function RoomsPage() {
                     <h3 className="font-bold text-base text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                       {room.title}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center">
-                      <svg className="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}
-                    </p>
+                    <div className="mt-1 flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-xs text-slate-500 flex items-center">
+                        <svg className="w-3.5 h-3.5 mr-1 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}</span>
+                      </p>
+                      {room.is_address_locked ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                          <span>🔒</span> Address Locked
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                          <span>✓</span> Verified Address
+                        </span>
+                      )}
+                    </div>
+
+                    {room.is_address_locked ? (
+                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 font-medium">Exact address hidden</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowUpgradeModal(true);
+                          }}
+                          className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline"
+                        >
+                          Unlock Full Address &rarr;
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-600 mt-1.5 truncate flex items-center gap-1">
+                        <span className="text-slate-400">📍</span>
+                        <span className="font-medium text-slate-700">{room.address}</span>
+                      </p>
+                    )}
 
                     <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
                       {room.description}

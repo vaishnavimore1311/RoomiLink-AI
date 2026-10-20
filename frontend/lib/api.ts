@@ -22,7 +22,7 @@ export async function apiRequest<T = any>(
 
   Object.assign(defaultHeaders, headers as Record<string, string>);
 
-  if (requiresAuth && typeof window !== "undefined") {
+  if (typeof window !== "undefined") {
     const token = localStorage.getItem("roomilink_token");
     if (token) {
       defaultHeaders["Authorization"] = `Bearer ${token}`;

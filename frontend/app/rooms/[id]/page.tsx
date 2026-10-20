@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { RoomListing } from "@/types/room";
@@ -35,31 +35,29 @@ function RoomDetailContent() {
   const [proSeekerPlan, setProSeekerPlan] = useState<SubscriptionPlan | null>(null);
   const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
-  useEffect(() => {
-    const fetchRoom = async () => {
-      if (!roomId) return;
-      setIsLoading(true);
-      try {
-        const res = await apiRequest<{ data: RoomListing }>(`/rooms/${roomId}`, {
-          requiresAuth: false,
-        });
-        if (res.data?.data) {
-          setRoom(res.data.data);
-        } else {
-          setError(res.error || "Room listing not found.");
-        }
-      } catch (err: any) {
-        setError(err?.message || "Failed to load room details.");
-      } finally {
-        setIsLoading(false);
+  const fetchRoom = useCallback(async () => {
+    if (!roomId) return;
+    setIsLoading(true);
+    try {
+      const res = await apiRequest<{ data: RoomListing }>(`/rooms/${roomId}`);
+      if (res.data?.data) {
+        setRoom(res.data.data);
+      } else {
+        setError(res.error || "Room listing not found.");
       }
-    };
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load room details.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    fetchRoom();
 
     const fetchPlans = async () => {
       try {
-        const res = await apiRequest<{ data: SubscriptionPlan[] }>("/subscriptions/plans?role=seeker", {
-          requiresAuth: false,
-        });
+        const res = await apiRequest<{ data: SubscriptionPlan[] }>("/subscriptions/plans?role=seeker");
         if (res.data?.data) {
           const proPlan = res.data.data.find((p) => p.slug === "pro_seeker");
           if (proPlan) setProSeekerPlan(proPlan);
@@ -69,9 +67,8 @@ function RoomDetailContent() {
       }
     };
 
-    fetchRoom();
     fetchPlans();
-  }, [roomId]);
+  }, [fetchRoom]);
 
   const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,13 +198,65 @@ function RoomDetailContent() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   {room.title}
                 </h1>
-                <p className="text-sm text-slate-500 mt-1 flex items-center">
-                  <svg className="w-4 h-4 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {room.address}, {room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}
-                </p>
+                {room.is_address_locked ? (
+                  <div className="mt-2 space-y-2.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm text-slate-600 font-medium flex items-center">
+                        <svg className="w-4 h-4 mr-1.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}</span>
+                      </p>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-xs">
+                        <span>🔒</span> Exact Address Locked
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50/70 via-indigo-50/40 to-slate-50 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm shrink-0">
+                          🔒
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Exact Street Address Hidden</p>
+                          <p className="text-[11px] text-slate-600">Full street address &amp; building number are visible to subscribed members only.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            router.push(`/login?redirect=${encodeURIComponent(`/rooms/${roomId}`)}`);
+                          } else {
+                            setShowPaywallModal(true);
+                          }
+                        }}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95 shrink-0"
+                      >
+                        Unlock Full Address &rarr;
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm text-slate-600 font-medium flex items-center">
+                        <svg className="w-4 h-4 mr-1.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}</span>
+                      </p>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span>✓</span> Exact Address Unlocked
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-700 font-semibold pl-5">
+                      📍 {room.address}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Specs Bar */}
@@ -547,6 +596,7 @@ function RoomDetailContent() {
           await refreshUser();
           setUnlockedJustNow(true);
           setShowPaymentModal(false);
+          await fetchRoom();
           setShowInquiryModal(true);
         }}
       />
