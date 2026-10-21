@@ -4,14 +4,13 @@ This document tracks all active issues created for the latest feature requiremen
 
 | Issue # | Title | Assigned Member | GitHub Handle | Type | GitHub Link | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **#33** | [Feature] Hide exact room address for unsubscribed users (show basic details only) | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#33](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/33) | Assigned |
-| **#34** | [UX] Redirect authenticated users directly to Find Rooms (/rooms) upon login and registration | **Shweta** | `@Shwetadhanawade13` | Routing / UX | [#34](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/34) | Assigned |
-| **#35** | [Feature] Restrict room and property listing creation to subscribed users only | **Vaishnavi More** | `@vaishnavimore1311` | Paywall / Permissions | [#35](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/35) | Assigned |
-| **#36** | [Bug/UX] Update brand logo click behavior to navigate within app when logged in | **Shweta** | `@Shwetadhanawade13` | Navigation / UX | [#36](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/36) | Assigned |
-| **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Assigned |
-| **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40)) |
-
-| **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Implemented (Feature Branch) |
+| **#33** | [Feature] Hide exact room address for unsubscribed users (show basic details only) | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#33](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/33) | Closed (PR [#44](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/44)) |
+| **#34** | [UX] Redirect authenticated users directly to Find Rooms (/rooms) upon login and registration | **Shweta** | `@Shwetadhanawade13` | Routing / UX | [#34](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/34) | Closed (PR [#42](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/42)) |
+| **#35** | [Feature] Restrict room and property listing creation to subscribed users only | **Vaishnavi More** | `@vaishnavimore1311` | Paywall / Permissions | [#35](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/35) | Closed (PR [#43](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/43)) |
+| **#36** | [Bug/UX] Update brand logo click behavior to navigate within app when logged in | **Shweta** | `@Shwetadhanawade13` | Navigation / UX | [#36](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/36) | Closed (PR [#45](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/45)) |
+| **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Closed (PR [#41](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/41)) |
+| **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40) & [#46](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/46)) |
+| **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
 
 ---
 
