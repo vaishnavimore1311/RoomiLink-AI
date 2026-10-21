@@ -20,6 +20,15 @@ export interface RoomListing {
   lister_name: string;
   lister_email?: string;
   created_at?: string;
+  is_favorited?: boolean;
+  favorited_at?: string;
+}
+
+export interface FavoriteToggleResponse {
+  status: string;
+  is_favorited: boolean;
+  message: string;
+  room_id: number;
 }
 
 export interface RoomInquiry {

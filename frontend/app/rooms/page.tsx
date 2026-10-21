@@ -19,6 +19,11 @@ export default function RoomsPage() {
   const [maxRent, setMaxRent] = useState<number>(35000);
   const [roomType, setRoomType] = useState<string>("all");
   const [selectedAmenity, setSelectedAmenity] = useState<string>("");
+  const [savedOnly, setSavedOnly] = useState(false);
+
+  // Favorites state
+  const [favoritedIds, setFavoritedIds] = useState<Set<number>>(new Set());
+  const [favoriteToast, setFavoriteToast] = useState<{ message: string; type: "add" | "remove" } | null>(null);
 
   // Determine if user is eligible to create listings
   const isEligibleToList =
@@ -53,6 +58,23 @@ export default function RoomsPage() {
 
       if (res.data?.data) {
         setRooms(res.data.data);
+
+        // Populate initial favorited rooms
+        const favSet = new Set<number>();
+        res.data.data.forEach((r) => {
+          if (r.is_favorited) favSet.add(r.id);
+        });
+
+        // Also merge local storage favorites
+        if (typeof window !== "undefined") {
+          try {
+            const stored = JSON.parse(localStorage.getItem("roomilink_local_favorites") || "[]");
+            if (Array.isArray(stored)) {
+              stored.forEach((id: number) => favSet.add(id));
+            }
+          } catch (e) {}
+        }
+        setFavoritedIds(favSet);
       } else {
         setError(res.error || "Failed to load room listings.");
       }
@@ -67,9 +89,59 @@ export default function RoomsPage() {
     fetchRooms();
   }, [fetchRooms]);
 
-  const filteredRooms = selectedAmenity
-    ? rooms.filter((r) => r.amenities?.includes(selectedAmenity))
-    : rooms;
+  const handleToggleFavorite = async (e: React.MouseEvent, roomId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isCurrentlyFav = favoritedIds.has(roomId);
+    const updatedSet = new Set(favoritedIds);
+
+    if (isCurrentlyFav) {
+      updatedSet.delete(roomId);
+    } else {
+      updatedSet.add(roomId);
+    }
+    setFavoritedIds(updatedSet);
+
+    // Save to localStorage
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("roomilink_local_favorites", JSON.stringify(Array.from(updatedSet)));
+      } catch (e) {}
+    }
+
+    if (isAuthenticated) {
+      try {
+        const res = await apiRequest<{ is_favorited: boolean; message: string }>(`/rooms/${roomId}/favorite`, {
+          method: "POST",
+          requiresAuth: true,
+        });
+        if (res.data) {
+          setFavoriteToast({
+            message: res.data.is_favorited ? "Saved to your favorites! ❤️" : "Removed from saved rooms.",
+            type: res.data.is_favorited ? "add" : "remove",
+          });
+        }
+      } catch (err) {
+        console.error("Favorite toggle error:", err);
+      }
+    } else {
+      setFavoriteToast({
+        message: !isCurrentlyFav ? "Room saved! Sign in to sync across devices. ❤️" : "Removed from saved rooms.",
+        type: !isCurrentlyFav ? "add" : "remove",
+      });
+    }
+
+    setTimeout(() => {
+      setFavoriteToast(null);
+    }, 2800);
+  };
+
+  const filteredRooms = rooms.filter((r) => {
+    if (savedOnly && !favoritedIds.has(r.id)) return false;
+    if (selectedAmenity && !r.amenities?.includes(selectedAmenity)) return false;
+    return true;
+  });
 
   const resetFilters = () => {
     setSearch("");
@@ -77,6 +149,7 @@ export default function RoomsPage() {
     setMaxRent(35000);
     setRoomType("all");
     setSelectedAmenity("");
+    setSavedOnly(false);
   };
 
   return (
@@ -155,13 +228,14 @@ export default function RoomsPage() {
               { label: "Kothrud", c: "Pune", s: "Kothrud" },
               { label: "Kharadi", c: "Pune", s: "Kharadi" }
             ].map((hotspot) => {
-              const isActive = (hotspot.label === "All Rooms" && !city && !search) ||
-                (hotspot.c === city && (hotspot.s === search || (!hotspot.s && !search)));
+              const isActive = (hotspot.label === "All Rooms" && !city && !search && !savedOnly) ||
+                (hotspot.c === city && (hotspot.s === search || (!hotspot.s && !search)) && !savedOnly);
               return (
                 <button
                   key={hotspot.label}
                   type="button"
                   onClick={() => {
+                    setSavedOnly(false);
                     setCity(hotspot.c);
                     setSearch(hotspot.s);
                   }}
@@ -175,6 +249,27 @@ export default function RoomsPage() {
                 </button>
               );
             })}
+
+            {/* Saved Rooms Filter Pill */}
+            <button
+              type="button"
+              onClick={() => setSavedOnly(!savedOnly)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs ml-1 ${
+                savedOnly
+                  ? "bg-rose-500 text-white ring-2 ring-rose-400"
+                  : "bg-white text-slate-700 border border-slate-200 hover:border-rose-300 hover:text-rose-600"
+              }`}
+            >
+              <span className={savedOnly ? "text-white" : "text-rose-500"}>❤️</span>
+              <span>Saved Rooms</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  savedOnly ? "bg-white text-rose-600" : "bg-rose-50 text-rose-600 border border-rose-100"
+                }`}
+              >
+                {favoritedIds.size}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -289,29 +384,50 @@ export default function RoomsPage() {
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">No rooms found</h2>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              No active room listings match your search criteria. Try expanding your budget or clearing filters.
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={resetFilters}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Reset Filters
-              </button>
-              <Link
-                href="/rooms/new"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700"
-              >
-                List a Room
-              </Link>
-            </div>
+            {savedOnly ? (
+              <>
+                <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-500 mx-auto flex items-center justify-center text-3xl">
+                  ❤️
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">No Saved Rooms Yet</h2>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Click the heart icon on any room listing to bookmark it here for quick access and comparison.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSavedOnly(false)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                >
+                  Browse All Rooms
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">No rooms found</h2>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  No active room listings match your search criteria. Try expanding your budget or clearing filters.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Reset Filters
+                  </button>
+                  <Link
+                    href="/rooms/new"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700"
+                  >
+                    List a Room
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -343,15 +459,42 @@ export default function RoomsPage() {
                     </div>
                   )}
 
-                  {/* Rent Pill Badge */}
-                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm z-10">
-                    ₹{room.rent_amount.toLocaleString("en-IN")}{" "}
-                    <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
-                  </div>
+                  {/* Favorite Bookmark Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleFavorite(e, room.id)}
+                    aria-label={favoritedIds.has(room.id) ? "Remove from favorites" : "Save to favorites"}
+                    title={favoritedIds.has(room.id) ? "Remove from saved rooms" : "Save this room"}
+                    className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-md backdrop-blur-md transition-all z-20 active:scale-90 ${
+                      favoritedIds.has(room.id)
+                        ? "bg-rose-500 text-white hover:bg-rose-600 scale-105"
+                        : "bg-white/90 text-slate-500 hover:text-rose-500 hover:bg-white"
+                    }`}
+                  >
+                    <svg
+                      className="w-4 h-4 transition-transform duration-200"
+                      fill={favoritedIds.has(room.id) ? "currentColor" : "none"}
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
 
                   {/* Room Type Tag */}
-                  <div className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-sm text-white text-[11px] font-medium capitalize">
+                  <div className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-sm text-white text-[11px] font-medium capitalize z-10">
                     {room.room_type} Room
+                  </div>
+
+                  {/* Rent Pill Badge */}
+                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm z-10">
+                    ₹{room.rent_amount.toLocaleString("en-IN")}{" "}
+                    <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
                   </div>
                 </div>
 
@@ -440,6 +583,14 @@ export default function RoomsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Favorite Action Floating Toast */}
+        {favoriteToast && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold rounded-2xl shadow-2xl border border-slate-700/60 animate-bounce duration-300">
+            <span>{favoriteToast.type === "add" ? "❤️" : "🤍"}</span>
+            <span>{favoriteToast.message}</span>
           </div>
         )}
       </div>

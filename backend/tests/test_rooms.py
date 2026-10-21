@@ -343,3 +343,136 @@ def test_exact_address_visible_for_subscribers_admin_and_host(client):
     assert res_host_detail.get_json()["data"]["address"] == exact_address
     assert res_host_detail.get_json()["data"]["is_address_locked"] is False
 
+
+def test_toggle_room_favorite_flow(client):
+    """Test full bookmark/favorite flow for Issue #39:
+    1. Create room listing.
+    2. Toggle favorite on (201, is_favorited: True).
+    3. Verify room appears in GET /favorites and GET /favorites/ids.
+    4. Verify is_favorited flag in GET /rooms and GET /rooms/<id>.
+    5. Toggle favorite off (200, is_favorited: False).
+    6. Verify room removed from favorites.
+    """
+    # Create host & room
+    host_token = register_and_get_token(client, email="host_fav@example.com")
+    subscribe_user("host_fav@example.com", status="active", expires_in_days=30)
+
+    res_create = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {host_token}"},
+        json={
+            "title": "Cozy Master Bedroom in Kothrud",
+            "description": "Spacious room with balcony.",
+            "address": "Near MIT College, Kothrud",
+            "city": "Pune",
+            "neighborhood": "Kothrud",
+            "property_type": "apartment",
+            "room_type": "master",
+            "rent_amount": 12000.0,
+            "deposit_amount": 25000.0
+        }
+    )
+    assert res_create.status_code == 201
+    room_id = res_create.get_json()["data"]["room_id"]
+
+    # Register seeker
+    seeker_token = register_and_get_token(client, email="seeker_fav@example.com", role="seeker")
+
+    # Initially favorites should be empty
+    res_initial = client.get(
+        "/api/v1/rooms/favorites",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_initial.status_code == 200
+    assert res_initial.get_json()["count"] == 0
+    assert res_initial.get_json()["data"] == []
+
+    # 1. Add to favorites (toggle ON)
+    res_fav_on = client.post(
+        f"/api/v1/rooms/{room_id}/favorite",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_fav_on.status_code == 201
+    data_on = res_fav_on.get_json()
+    assert data_on["status"] == "success"
+    assert data_on["is_favorited"] is True
+    assert data_on["room_id"] == room_id
+
+    # 2. Verify GET /favorites returns the saved room
+    res_favs = client.get(
+        "/api/v1/rooms/favorites",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_favs.status_code == 200
+    favs_data = res_favs.get_json()
+    assert favs_data["count"] == 1
+    assert favs_data["data"][0]["id"] == room_id
+    assert favs_data["data"][0]["is_favorited"] is True
+    assert favs_data["data"][0]["title"] == "Cozy Master Bedroom in Kothrud"
+
+    # 3. Verify GET /favorites/ids
+    res_ids = client.get(
+        "/api/v1/rooms/favorites/ids",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_ids.status_code == 200
+    assert res_ids.get_json()["data"] == [room_id]
+
+    # 4. Verify is_favorited flag in GET /rooms and GET /rooms/<id>
+    res_list = client.get(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_list.status_code == 200
+    matched_room = [r for r in res_list.get_json()["data"] if r["id"] == room_id][0]
+    assert matched_room["is_favorited"] is True
+
+    res_detail = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_detail.status_code == 200
+    assert res_detail.get_json()["data"]["is_favorited"] is True
+
+    # 5. Toggle favorite OFF
+    res_fav_off = client.post(
+        f"/api/v1/rooms/{room_id}/favorite",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_fav_off.status_code == 200
+    data_off = res_fav_off.get_json()
+    assert data_off["status"] == "success"
+    assert data_off["is_favorited"] is False
+
+    # 6. Verify room removed from favorites
+    res_favs_after = client.get(
+        "/api/v1/rooms/favorites",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_favs_after.status_code == 200
+    assert res_favs_after.get_json()["count"] == 0
+
+    res_ids_after = client.get(
+        "/api/v1/rooms/favorites/ids",
+        headers={"Authorization": f"Bearer {seeker_token}"}
+    )
+    assert res_ids_after.status_code == 200
+    assert res_ids_after.get_json()["data"] == []
+
+
+def test_favorite_unauthenticated_and_not_found(client):
+    """Test unauthorized access and nonexistent room for favorites endpoints."""
+    # 401 when unauthenticated
+    assert client.post("/api/v1/rooms/1/favorite").status_code == 401
+    assert client.get("/api/v1/rooms/favorites").status_code == 401
+    assert client.get("/api/v1/rooms/favorites/ids").status_code == 401
+
+    # 404 when room does not exist
+    token = register_and_get_token(client, email="seeker_404@example.com")
+    res_404 = client.post(
+        "/api/v1/rooms/999999/favorite",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert res_404.status_code == 404
+
+

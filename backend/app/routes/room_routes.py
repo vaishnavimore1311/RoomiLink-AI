@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models.property_models import Property, Room, RoomInquiry
+from app.models.property_models import Property, Room, RoomInquiry, FavoriteRoom
 from app.models.user_models import User
 
 
@@ -70,6 +70,14 @@ def get_rooms():
 
     results = query.all()
 
+    user_fav_room_ids = set()
+    if current_user_id:
+        try:
+            favs = FavoriteRoom.query.filter_by(user_id=int(current_user_id)).all()
+            user_fav_room_ids = {f.room_id for f in favs}
+        except Exception:
+            user_fav_room_ids = set()
+
     rooms_data = []
     for room, prop in results:
         lister = db.session.get(User, prop.lister_id)
@@ -103,7 +111,8 @@ def get_rooms():
             "images": room.get_images(),
             "lister_id": prop.lister_id,
             "lister_name": lister_name,
-            "created_at": prop.created_at.isoformat() if prop.created_at else None
+            "created_at": prop.created_at.isoformat() if prop.created_at else None,
+            "is_favorited": room.id in user_fav_room_ids
         })
 
     return jsonify({
@@ -149,6 +158,13 @@ def get_room_detail(room_id):
     display_address = prop.address if can_view_address else "🔒 Subscribed Members Only"
     is_address_locked = not can_view_address
 
+    is_favorited = False
+    if current_user_id:
+        try:
+            is_favorited = bool(FavoriteRoom.query.filter_by(user_id=int(current_user_id), room_id=room.id).first())
+        except Exception:
+            is_favorited = False
+
     room_detail = {
         "id": room.id,
         "property_id": prop.id,
@@ -170,7 +186,8 @@ def get_room_detail(room_id):
         "lister_id": prop.lister_id,
         "lister_name": lister_name,
         "lister_email": lister_email,
-        "created_at": prop.created_at.isoformat() if prop.created_at else None
+        "created_at": prop.created_at.isoformat() if prop.created_at else None,
+        "is_favorited": is_favorited
     }
 
     return jsonify({
@@ -379,6 +396,116 @@ def update_inquiry_status(inquiry_id):
         "message": f"Inquiry status updated to {new_status}.",
         "data": inquiry.to_dict()
     }), 200
+
+
+
+@room_bp.route("/favorites", methods=["GET"])
+@jwt_required()
+def get_user_favorites():
+    """Retrieve all favorited room listings for the authenticated user."""
+    user_id = int(get_jwt_identity())
+    current_user = db.session.get(User, user_id)
+    if not current_user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    user_has_active_sub = bool(current_user.get_active_subscription())
+    user_is_admin = bool(current_user.role == "admin")
+
+    results = (
+        db.session.query(FavoriteRoom, Room, Property)
+        .join(Room, FavoriteRoom.room_id == Room.id)
+        .join(Property, Room.property_id == Property.id)
+        .filter(FavoriteRoom.user_id == user_id)
+        .order_by(FavoriteRoom.created_at.desc())
+        .all()
+    )
+
+    rooms_data = []
+    for fav, room, prop in results:
+        lister = db.session.get(User, prop.lister_id)
+        lister_name = lister.profile.full_name if lister and lister.profile else "Verified Host"
+
+        can_view_address = (
+            user_is_admin or
+            user_has_active_sub or
+            current_user.id == prop.lister_id
+        )
+        display_address = prop.address if can_view_address else "🔒 Subscribed Members Only"
+        is_address_locked = not can_view_address
+
+        rooms_data.append({
+            "id": room.id,
+            "property_id": prop.id,
+            "title": prop.title,
+            "description": prop.description,
+            "address": display_address,
+            "is_address_locked": is_address_locked,
+            "city": prop.city,
+            "neighborhood": prop.neighborhood,
+            "property_type": prop.property_type,
+            "room_type": room.room_type,
+            "rent_amount": room.rent_amount,
+            "deposit_amount": room.deposit_amount,
+            "available_from": room.available_from,
+            "is_available": room.is_available,
+            "is_featured": bool(room.is_featured),
+            "amenities": room.get_amenities(),
+            "images": room.get_images(),
+            "lister_id": prop.lister_id,
+            "lister_name": lister_name,
+            "created_at": prop.created_at.isoformat() if prop.created_at else None,
+            "is_favorited": True,
+            "favorited_at": fav.created_at.isoformat() if fav.created_at else None
+        })
+
+    return jsonify({
+        "status": "success",
+        "count": len(rooms_data),
+        "data": rooms_data
+    }), 200
+
+
+@room_bp.route("/favorites/ids", methods=["GET"])
+@jwt_required()
+def get_user_favorite_ids():
+    """Retrieve list of favorited room IDs for current user."""
+    user_id = int(get_jwt_identity())
+    favs = FavoriteRoom.query.filter_by(user_id=user_id).all()
+    return jsonify({
+        "status": "success",
+        "data": [f.room_id for f in favs]
+    }), 200
+
+
+@room_bp.route("/<int:room_id>/favorite", methods=["POST"])
+@jwt_required()
+def toggle_room_favorite(room_id):
+    """Toggle bookmark / favorite for a room listing."""
+    user_id = int(get_jwt_identity())
+    room = db.session.get(Room, room_id)
+    if not room:
+        return jsonify({"status": "error", "message": "Room listing not found."}), 404
+
+    existing = FavoriteRoom.query.filter_by(user_id=user_id, room_id=room_id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "is_favorited": False,
+            "message": "Room removed from saved rooms.",
+            "room_id": room_id
+        }), 200
+    else:
+        new_fav = FavoriteRoom(user_id=user_id, room_id=room_id)
+        db.session.add(new_fav)
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "is_favorited": True,
+            "message": "Room saved to favorites.",
+            "room_id": room_id
+        }), 201
 
 
 
