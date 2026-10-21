@@ -25,33 +25,54 @@ function DashboardContent() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (user?.role === "seeker") {
+      setInboxSubTab("sent");
+    } else {
+      setInboxSubTab("received");
+    }
+  }, [user?.role]);
+
+  useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
   }, [isLoading, isAuthenticated, router]);
+
 
   const fetchInquiries = useCallback(async () => {
     if (!isAuthenticated) return;
     setInquiriesLoading(true);
     setInquiriesError(null);
     try {
-      const [resReceived, resSent] = await Promise.all([
-        apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/received", { requiresAuth: true }),
-        apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/sent", { requiresAuth: true })
-      ]);
+      if (user?.role === "seeker") {
+        const resSent = await apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/sent", { requiresAuth: true });
+        if (resSent.data?.data) {
+          setSentInquiries(resSent.data.data);
+        }
+      } else if (user?.role === "lister") {
+        const resReceived = await apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/received", { requiresAuth: true });
+        if (resReceived.data?.data) {
+          setReceivedInquiries(resReceived.data.data);
+        }
+      } else {
+        const [resReceived, resSent] = await Promise.all([
+          apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/received", { requiresAuth: true }),
+          apiRequest<{ data: RoomInquiry[] }>("/rooms/inquiries/sent", { requiresAuth: true })
+        ]);
 
-      if (resReceived.data?.data) {
-        setReceivedInquiries(resReceived.data.data);
-      }
-      if (resSent.data?.data) {
-        setSentInquiries(resSent.data.data);
+        if (resReceived.data?.data) {
+          setReceivedInquiries(resReceived.data.data);
+        }
+        if (resSent.data?.data) {
+          setSentInquiries(resSent.data.data);
+        }
       }
     } catch (err: any) {
       setInquiriesError(err?.message || "Failed to load inquiries.");
     } finally {
       setInquiriesLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.role]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -93,6 +114,11 @@ function DashboardContent() {
 
   const profile = user.profile;
   const pref = user.preference;
+
+  const isLister = user.role === "lister";
+  const isSeeker = user.role === "seeker";
+  const isAdmin = user.role === "admin";
+  const showSubTabSwitcher = isAdmin;
 
   const pendingReceivedCount = receivedInquiries.filter((inq) => inq.status === "pending").length;
 
@@ -166,16 +192,24 @@ function DashboardContent() {
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             }`}
           >
-            <span>📬 Inquiries Inbox</span>
-            {pendingReceivedCount > 0 && (
+            <span>{isSeeker ? "📬 My Inquiries" : isLister ? "📬 Guest Inquiries" : "📬 Inquiries Inbox"}</span>
+            {isLister && pendingReceivedCount > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
                 activeTab === "inbox" ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
               }`}>
                 {pendingReceivedCount}
               </span>
             )}
+            {isSeeker && sentInquiries.length > 0 && (
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                activeTab === "inbox" ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
+              }`}>
+                {sentInquiries.length}
+              </span>
+            )}
           </button>
         </div>
+
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && (
@@ -284,39 +318,51 @@ function DashboardContent() {
             {/* Inbox Header & Subtabs */}
             <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Room Inquiries &amp; Host Messages</h2>
+                <h2 className="text-xl font-extrabold text-slate-900">
+                  {isSeeker
+                    ? "My Sent Room Inquiries"
+                    : isLister
+                    ? "Incoming Guest Inquiries"
+                    : "Room Inquiries & Host Messages"}
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Direct communication channels between verified property hosts and prospective seekers.
+                  {isSeeker
+                    ? "Track and manage the status of room inquiries you have sent to verified hosts."
+                    : isLister
+                    ? "Review and respond to prospective tenants interested in your property listings."
+                    : "Direct communication channels between verified property hosts and prospective seekers."}
                 </p>
               </div>
 
-              {/* Subtab Segmented Switcher */}
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                <button
-                  onClick={() => setInboxSubTab("received")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    inboxSubTab === "received"
-                      ? "bg-white text-indigo-600 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Received as Host ({receivedInquiries.length})
-                </button>
-                <button
-                  onClick={() => setInboxSubTab("sent")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    inboxSubTab === "sent"
-                      ? "bg-white text-indigo-600 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Sent as Seeker ({sentInquiries.length})
-                </button>
-              </div>
+              {/* Subtab Segmented Switcher (Admin only) */}
+              {showSubTabSwitcher && (
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  <button
+                    onClick={() => setInboxSubTab("received")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      inboxSubTab === "received"
+                        ? "bg-white text-indigo-600 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Received as Host ({receivedInquiries.length})
+                  </button>
+                  <button
+                    onClick={() => setInboxSubTab("sent")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      inboxSubTab === "sent"
+                        ? "bg-white text-indigo-600 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Sent as Seeker ({sentInquiries.length})
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* SUBTAB: RECEIVED INQUIRIES */}
-            {inboxSubTab === "received" && (
+            {!isSeeker && inboxSubTab === "received" && (
               <div className="space-y-4">
                 {/* Filter Pills */}
                 <div className="flex items-center gap-2">
@@ -480,8 +526,19 @@ function DashboardContent() {
             )}
 
             {/* SUBTAB: SENT INQUIRIES */}
-            {inboxSubTab === "sent" && (
+            {(isSeeker || (!isLister && inboxSubTab === "sent")) && (
               <div className="space-y-4">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs text-slate-500 font-semibold">
+                    {sentInquiries.length} {sentInquiries.length === 1 ? "inquiry" : "inquiries"} sent
+                  </span>
+                  <button
+                    onClick={fetchInquiries}
+                    className="text-xs text-indigo-600 hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <span>🔄</span> Refresh
+                  </button>
+                </div>
                 {inquiriesLoading ? (
                   <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
                     <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
