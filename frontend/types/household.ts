@@ -56,6 +56,7 @@ export interface LedgerData {
   net_balance: number;
   debts: DebtObligation[];
   recent_expenses: ExpenseItem[];
+  category_breakdown?: Record<string, number>;
 }
 
 export interface ChoreItem {

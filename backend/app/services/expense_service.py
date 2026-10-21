@@ -73,7 +73,8 @@ def calculate_ledger(household_id: int, current_user_id: int = None) -> Dict[str
             "total_owed_to_me": 0.0,
             "net_balance": 0.0,
             "debts": [],
-            "recent_expenses": []
+            "recent_expenses": [],
+            "category_breakdown": {}
         }
 
     unsettled_payments = Payment.query.filter(
@@ -124,29 +125,41 @@ def calculate_ledger(household_id: int, current_user_id: int = None) -> Dict[str
 
     recent_expenses = [e.to_dict() for e in sorted(expenses, key=lambda x: x.created_at or datetime.min, reverse=True)[:15]]
 
+    category_breakdown: Dict[str, float] = {}
+    for e in expenses:
+        cat = e.category or "Other"
+        category_breakdown[cat] = round(category_breakdown.get(cat, 0.0) + float(e.amount), 2)
+
     return {
         "total_i_owe": round(total_i_owe, 2),
         "total_owed_to_me": round(total_owed_to_me, 2),
         "net_balance": round(total_owed_to_me - total_i_owe, 2),
         "debts": debts_list,
-        "recent_expenses": recent_expenses
+        "recent_expenses": recent_expenses,
+        "category_breakdown": category_breakdown
     }
 
 
 def settle_debt_between_users(household_id: int, from_user_id: int, to_user_id: int) -> int:
-    """Mark all unsettled payments from user A to user B as settled."""
+    """Settle mutual debt between two users, marking opposing obligations as settled."""
     expenses = Expense.query.filter_by(household_id=household_id).all()
     expense_ids = [e.id for e in expenses]
 
     if not expense_ids:
         return 0
 
+    # Retrieve all unsettled payments in both directions between the two users
     payments = Payment.query.filter(
         Payment.expense_id.in_(expense_ids),
-        Payment.from_user_id == from_user_id,
-        Payment.to_user_id == to_user_id,
-        Payment.is_settled == False
+        Payment.is_settled == False,
+        db.or_(
+            db.and_(Payment.from_user_id == from_user_id, Payment.to_user_id == to_user_id),
+            db.and_(Payment.from_user_id == to_user_id, Payment.to_user_id == from_user_id)
+        )
     ).all()
+
+    if not payments:
+        return 0
 
     now = datetime.now(timezone.utc)
     for p in payments:

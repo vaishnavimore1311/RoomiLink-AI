@@ -574,6 +574,47 @@ function HouseholdContent() {
               )}
             </div>
 
+            {/* Category Spending Breakdown */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Category Spending Breakdown</h3>
+                <p className="text-xs text-slate-500">Aggregate household spending grouped by category</p>
+              </div>
+
+              {!ledger?.category_breakdown || Object.keys(ledger.category_breakdown).length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-xl text-xs text-slate-500">
+                  No categorized expenses yet. Record expenses to see spending breakdown.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {Object.entries(ledger.category_breakdown).map(([category, total]) => (
+                    <div
+                      key={category}
+                      className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-100 space-y-1 text-xs"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="w-6 h-6 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                          {category === "Groceries"
+                            ? "🛒"
+                            : category === "Utilities"
+                            ? "💡"
+                            : category === "Rent"
+                            ? "🏠"
+                            : category === "Supplies"
+                            ? "🧹"
+                            : "📦"}
+                        </span>
+                        <span className="font-semibold text-slate-700 truncate">{category}</span>
+                      </div>
+                      <p className="text-base font-bold text-slate-900 pt-0.5">
+                        ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Expense Transaction History */}
             <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="font-bold text-slate-900 text-base">Recent Expense History</h3>
