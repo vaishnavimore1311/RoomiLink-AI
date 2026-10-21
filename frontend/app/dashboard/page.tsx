@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
-import { RoomInquiry } from "@/types/room";
+import { RoomInquiry, RoomListing } from "@/types/room";
 
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
 
-  const initialTab = searchParams.get("tab") === "inquiries" ? "inbox" : "overview";
-  const [activeTab, setActiveTab] = useState<"overview" | "inbox">(initialTab);
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam === "inquiries" ? "inbox" : tabParam === "saved" ? "saved" : "overview";
+  const [activeTab, setActiveTab] = useState<"overview" | "inbox" | "saved">(initialTab);
   const [inboxSubTab, setInboxSubTab] = useState<"received" | "sent">("received");
 
   // Inquiries State
@@ -23,6 +24,10 @@ function DashboardContent() {
   const [inquiriesError, setInquiriesError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "replied">("all");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  // Saved Rooms State
+  const [savedRooms, setSavedRooms] = useState<RoomListing[]>([]);
+  const [savedRoomsLoading, setSavedRoomsLoading] = useState(false);
 
   useEffect(() => {
     if (user?.role === "seeker") {
@@ -74,11 +79,36 @@ function DashboardContent() {
     }
   }, [isAuthenticated, user?.role]);
 
+  const fetchSavedRooms = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setSavedRoomsLoading(true);
+    try {
+      const res = await apiRequest<{ data: RoomListing[] }>("/rooms/favorites", { requiresAuth: true });
+      if (res.data?.data) {
+        setSavedRooms(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch saved rooms:", err);
+    } finally {
+      setSavedRoomsLoading(false);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchInquiries();
+      fetchSavedRooms();
     }
-  }, [isAuthenticated, fetchInquiries]);
+  }, [isAuthenticated, fetchInquiries, fetchSavedRooms]);
+
+  const handleRemoveSavedRoom = async (roomId: number) => {
+    setSavedRooms((prev) => prev.filter((r) => r.id !== roomId));
+    try {
+      await apiRequest(`/rooms/${roomId}/favorite`, { method: "POST", requiresAuth: true });
+    } catch (err) {
+      console.error("Failed to remove saved room:", err);
+    }
+  };
 
   const handleUpdateStatus = async (inquiryId: number, newStatus: "pending" | "replied" | "archived") => {
     setUpdatingId(inquiryId);
@@ -205,6 +235,25 @@ function DashboardContent() {
                 activeTab === "inbox" ? "bg-white text-indigo-600" : "bg-indigo-600 text-white"
               }`}>
                 {sentInquiries.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("saved")}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "saved"
+                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            }`}
+          >
+            <span>❤️ Saved Rooms</span>
+            {savedRooms.length > 0 && (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                  activeTab === "saved" ? "bg-white text-indigo-600" : "bg-rose-50 text-rose-600 border border-rose-200"
+                }`}
+              >
+                {savedRooms.length}
               </span>
             )}
           </button>
@@ -612,6 +661,132 @@ function DashboardContent() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: SAVED ROOMS */}
+        {activeTab === "saved" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">Your Saved Rooms</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Keep track of all your favorited listings in one place for quick comparison.
+                </p>
+              </div>
+              <Link
+                href="/rooms"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-colors"
+              >
+                <span>🔍</span> Browse More Rooms
+              </Link>
+            </div>
+
+            {savedRoomsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white rounded-2xl p-4 border border-slate-200 animate-pulse space-y-3">
+                    <div className="h-44 bg-slate-200 rounded-xl"></div>
+                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : savedRooms.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-500 mx-auto flex items-center justify-center text-3xl">
+                  ❤️
+                </div>
+                <h3 className="text-lg font-bold text-slate-800">No Saved Rooms Yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  You haven&apos;t favorited any rooms yet. Browse our verified listings and click the heart icon on any card to save it here.
+                </p>
+                <Link
+                  href="/rooms"
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                >
+                  Explore Rooms Now
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {savedRooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col group"
+                  >
+                    {/* Image Header */}
+                    <div className="relative h-44 bg-slate-100 overflow-hidden">
+                      {room.images && room.images.length > 0 ? (
+                        <img
+                          src={room.images[0]}
+                          alt={room.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-50 to-teal-50 text-slate-400">
+                          <span className="text-2xl">🏠</span>
+                        </div>
+                      )}
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSavedRoom(room.id)}
+                        title="Remove from saved"
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-rose-500 shadow-md backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-90 z-20"
+                      >
+                        <svg className="w-4 h-4 fill-rose-500" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                          />
+                        </svg>
+                      </button>
+
+                      <div className="absolute bottom-3 left-3 px-2.5 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-sm text-white text-[11px] font-medium capitalize">
+                        {room.room_type} Room
+                      </div>
+
+                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-xs">
+                        ₹{room.rent_amount?.toLocaleString("en-IN")}{" "}
+                        <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                          {room.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 flex items-center">
+                          <span className="mr-1 text-slate-400">📍</span>
+                          <span>{room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}</span>
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSavedRoom(room.id)}
+                          className="text-slate-400 hover:text-rose-600 font-medium text-[11px] transition-colors"
+                        >
+                          Remove
+                        </button>
+                        <Link
+                          href={`/rooms/${room.id}`}
+                          className="font-bold text-indigo-600 hover:text-indigo-700"
+                        >
+                          View Listing &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

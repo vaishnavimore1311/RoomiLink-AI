@@ -35,6 +35,10 @@ function RoomDetailContent() {
   const [proSeekerPlan, setProSeekerPlan] = useState<SubscriptionPlan | null>(null);
   const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
+  // Favorites State
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteToast, setFavoriteToast] = useState<{ message: string; type: "add" | "remove" } | null>(null);
+
   const fetchRoom = useCallback(async () => {
     if (!roomId) return;
     setIsLoading(true);
@@ -42,6 +46,18 @@ function RoomDetailContent() {
       const res = await apiRequest<{ data: RoomListing }>(`/rooms/${roomId}`);
       if (res.data?.data) {
         setRoom(res.data.data);
+
+        // Check if favorited from API or localStorage
+        let fav = Boolean(res.data.data.is_favorited);
+        if (!fav && typeof window !== "undefined") {
+          try {
+            const local = JSON.parse(localStorage.getItem("roomilink_local_favorites") || "[]");
+            if (Array.isArray(local) && local.includes(Number(roomId))) {
+              fav = true;
+            }
+          } catch (e) {}
+        }
+        setIsFavorited(fav);
       } else {
         setError(res.error || "Room listing not found.");
       }
@@ -106,6 +122,49 @@ function RoomDetailContent() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!roomId) return;
+    const nextState = !isFavorited;
+    setIsFavorited(nextState);
+
+    // Update localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const stored: number[] = JSON.parse(localStorage.getItem("roomilink_local_favorites") || "[]");
+        const set = new Set(stored);
+        if (nextState) set.add(Number(roomId));
+        else set.delete(Number(roomId));
+        localStorage.setItem("roomilink_local_favorites", JSON.stringify(Array.from(set)));
+      } catch (e) {}
+    }
+
+    if (isAuthenticated) {
+      try {
+        const res = await apiRequest<{ is_favorited: boolean; message: string }>(`/rooms/${roomId}/favorite`, {
+          method: "POST",
+          requiresAuth: true
+        });
+        if (res.data) {
+          setFavoriteToast({
+            message: res.data.is_favorited ? "Saved to your favorites! ❤️" : "Removed from saved rooms.",
+            type: res.data.is_favorited ? "add" : "remove"
+          });
+        }
+      } catch (err) {
+        console.error("Favorite toggle error:", err);
+      }
+    } else {
+      setFavoriteToast({
+        message: nextState ? "Room saved locally! Sign in to sync across devices. ❤️" : "Removed from saved rooms.",
+        type: nextState ? "add" : "remove"
+      });
+    }
+
+    setTimeout(() => {
+      setFavoriteToast(null);
+    }, 2800);
+  };
+
 
   if (isLoading) {
     return (
@@ -164,6 +223,31 @@ function RoomDetailContent() {
               alt={room.title}
               className="w-full h-full object-cover transition-all duration-300"
             />
+            {/* Top-Left Heart Button */}
+            <button
+              type="button"
+              onClick={handleToggleFavorite}
+              title={isFavorited ? "Remove from saved rooms" : "Save this room"}
+              className={`absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center shadow-md backdrop-blur-md transition-all active:scale-90 z-20 ${
+                isFavorited
+                  ? "bg-rose-500 text-white scale-105"
+                  : "bg-white/85 text-slate-700 hover:text-rose-500 hover:bg-white"
+              }`}
+            >
+              <svg
+                className="w-5 h-5 transition-transform duration-200"
+                fill={isFavorited ? "currentColor" : "none"}
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+            </button>
             <div className="absolute top-4 right-4 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-md text-slate-900 font-extrabold text-sm">
               ₹{room.rent_amount?.toLocaleString("en-IN")} <span className="text-xs text-slate-500 font-normal">/ month</span>
             </div>
@@ -195,9 +279,35 @@ function RoomDetailContent() {
           <div className="md:col-span-2 space-y-6">
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {room.title}
-                </h1>
+                <div className="flex items-start justify-between gap-4">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    {room.title}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={handleToggleFavorite}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border shrink-0 active:scale-95 ${
+                      isFavorited
+                        ? "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100 shadow-xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-rose-600"
+                    }`}
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-200 ${isFavorited ? "scale-110 text-rose-500 fill-rose-500" : "text-slate-400"}`}
+                      fill={isFavorited ? "currentColor" : "none"}
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                    <span>{isFavorited ? "Saved" : "Save Room"}</span>
+                  </button>
+                </div>
                 {room.is_address_locked ? (
                   <div className="mt-2 space-y-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -600,6 +710,14 @@ function RoomDetailContent() {
           setShowInquiryModal(true);
         }}
       />
+
+      {/* Toast Notification */}
+      {favoriteToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold rounded-2xl shadow-2xl border border-slate-700/60 animate-bounce duration-300">
+          <span>{favoriteToast.type === "add" ? "❤️" : "🤍"}</span>
+          <span>{favoriteToast.message}</span>
+        </div>
+      )}
 
     </div>
   );

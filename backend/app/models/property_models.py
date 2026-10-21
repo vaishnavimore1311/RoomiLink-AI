@@ -121,3 +121,29 @@ class RoomInquiry(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
+
+class FavoriteRoom(db.Model):
+    __tablename__ = "favorite_rooms"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = db.relationship("User", backref=db.backref("favorite_rooms", cascade="all, delete-orphan"))
+    room = db.relationship("Room", backref=db.backref("favorited_by", cascade="all, delete-orphan"))
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "room_id", name="uq_user_room_favorite"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "room_id": self.room_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+
