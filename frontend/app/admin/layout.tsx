@@ -59,7 +59,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Link
-              href="/login"
+              href="/login?redirect=/admin"
               className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all"
             >
               Sign In as Admin
