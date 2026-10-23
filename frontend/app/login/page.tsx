@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
   const { login, isAuthenticated, user, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -19,9 +21,15 @@ export default function LoginPage() {
   // If already authenticated, redirect to appropriate portal
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push("/rooms");
+      if (user.role === "admin") {
+        router.push(redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin");
+      } else if (redirectParam && !redirectParam.startsWith("/admin")) {
+        router.push(redirectParam);
+      } else {
+        router.push("/rooms");
+      }
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, redirectParam]);
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -52,9 +60,11 @@ export default function LoginPage() {
 
     if (result.success) {
       if (result.user?.role === "admin") {
-        router.push("/admin");
+        router.push(redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin");
+      } else if (redirectParam && !redirectParam.startsWith("/admin")) {
+        router.push(redirectParam);
       } else {
-        router.push("/dashboard");
+        router.push("/rooms");
       }
     } else {
       setErrorMessage(result.error || "Invalid email or password.");
@@ -274,3 +284,18 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-slate-50">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
+  );
+}
+
