@@ -1,5 +1,9 @@
+from datetime import datetime, timedelta, timezone
 import pytest
 from app import create_app, db
+from app.models.user_models import User
+from app.models.subscription_models import SubscriptionPlan, UserSubscription
+from app.models.household_models import Household, HouseholdMember
 
 @pytest.fixture
 def client():
@@ -9,14 +13,41 @@ def client():
         yield app.test_client()
         db.drop_all()
 
-def register_user(client, email, name):
+def subscribe_user(email, plan_slug="pro_seeker", status="active", expires_in_days=30):
+    user = User.query.filter_by(email=email).first()
+    plan = SubscriptionPlan.query.filter_by(slug=plan_slug).first()
+    if not plan:
+        plan = SubscriptionPlan(
+            name="Pro Seeker",
+            slug=plan_slug,
+            target_role="seeker",
+            price_inr=499.0
+        )
+        db.session.add(plan)
+        db.session.flush()
+
+    expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days) if expires_in_days is not None else None
+    sub = UserSubscription(
+        user_id=user.id,
+        plan_id=plan.id,
+        status=status,
+        expires_at=expires_at
+    )
+    db.session.add(sub)
+    db.session.commit()
+    return sub
+
+def register_user(client, email, name, role="seeker", subscribe=True):
     res = client.post("/api/v1/auth/register", json={
         "email": email,
         "password": "Password123!",
         "full_name": name,
-        "role": "seeker"
+        "role": role
     })
-    return res.get_json()["access_token"]
+    token = res.get_json()["access_token"]
+    if subscribe:
+        subscribe_user(email)
+    return token
 
 def test_household_lifecycle_and_expenses(client):
     token_admin = register_user(client, "admin@example.com", "Admin User")
@@ -295,5 +326,260 @@ def test_aggregate_category_breakdown(client):
     assert "total_i_owe" in data
     assert "total_owed_to_me" in data
     assert "net_balance" in data
+
+
+# ---------------------------------------------------------------------------
+# Issue #49: Subscription Guard Tests for Household Hub Joining & Creation
+# ---------------------------------------------------------------------------
+
+def test_join_household_unauthenticated(client):
+    """Unauthenticated users cannot join a household (401 Unauthorized)."""
+    res = client.post("/api/v1/household/join", json={"invite_code": "TESTCODE"})
+    assert res.status_code == 401
+
+
+def test_join_household_unsubscribed_forbidden(client):
+    """Unsubscribed users cannot join a household via invite code and receive 403 SUBSCRIPTION_REQUIRED."""
+    # 1. Creator (subscribed) creates household
+    token_creator = register_user(client, "creator1@example.com", "Creator One", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Kharadi Shared Flat", "address": "EON IT Park, Kharadi, Pune"}
+    )
+    assert res_create.status_code == 201
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    # 2. Unsubscribed user registers (without subscription)
+    token_unsub = register_user(client, "unsub_joiner@example.com", "Unsub Joiner", subscribe=False)
+    unsub_user = User.query.filter_by(email="unsub_joiner@example.com").first()
+
+    # 3. Direct API request to join must be rejected with 403 SUBSCRIPTION_REQUIRED
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_unsub}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join.status_code == 403
+    body = res_join.get_json()
+    assert body["status"] == "error"
+    assert body["code"] == "SUBSCRIPTION_REQUIRED"
+    assert body["upgrade_url"] == "/pricing"
+    assert "subscription is required" in body["message"].lower()
+
+    # 4. CRITICAL: Verify rejected join attempt did NOT create a membership or modify household
+    membership = HouseholdMember.query.filter_by(household_id=hh_id, user_id=unsub_user.id).first()
+    assert membership is None
+
+    # Total members remains exactly 1 (the creator)
+    members_count = HouseholdMember.query.filter_by(household_id=hh_id).count()
+    assert members_count == 1
+
+
+def test_join_household_expired_subscription_forbidden(client):
+    """Users with expired subscriptions are rejected from joining a household."""
+    token_creator = register_user(client, "creator2@example.com", "Creator Two", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Wakad Co-Living", "address": "Dutta Mandir Road, Wakad, Pune"}
+    )
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    # User with expired subscription (5 days ago)
+    token_expired = register_user(client, "expired_joiner@example.com", "Expired Joiner", subscribe=False)
+    subscribe_user("expired_joiner@example.com", status="expired", expires_in_days=-5)
+    expired_user = User.query.filter_by(email="expired_joiner@example.com").first()
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_expired}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join.status_code == 403
+    body = res_join.get_json()
+    assert body["code"] == "SUBSCRIPTION_REQUIRED"
+
+    membership = HouseholdMember.query.filter_by(household_id=hh_id, user_id=expired_user.id).first()
+    assert membership is None
+
+
+def test_join_household_cancelled_subscription_forbidden(client):
+    """Users with cancelled subscriptions are rejected from joining a household."""
+    token_creator = register_user(client, "creator3@example.com", "Creator Three", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Viman Nagar Studio", "address": "Symbiosis Road, Viman Nagar, Pune"}
+    )
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    # User with cancelled subscription
+    token_cancelled = register_user(client, "cancelled_joiner@example.com", "Cancelled Joiner", subscribe=False)
+    subscribe_user("cancelled_joiner@example.com", status="cancelled", expires_in_days=30)
+    cancelled_user = User.query.filter_by(email="cancelled_joiner@example.com").first()
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_cancelled}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join.status_code == 403
+    body = res_join.get_json()
+    assert body["code"] == "SUBSCRIPTION_REQUIRED"
+
+    membership = HouseholdMember.query.filter_by(household_id=hh_id, user_id=cancelled_user.id).first()
+    assert membership is None
+
+
+def test_join_household_subscribed_user_success(client):
+    """Subscribed users can successfully join a household using a valid invite code."""
+    token_creator = register_user(client, "creator4@example.com", "Creator Four", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Kothrud Co-Living", "address": "Paud Road, Kothrud, Pune"}
+    )
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    # Subscribed seeker
+    token_sub = register_user(client, "sub_joiner@example.com", "Subscribed Joiner", subscribe=True)
+    sub_user = User.query.filter_by(email="sub_joiner@example.com").first()
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join.status_code == 200
+    body = res_join.get_json()
+    assert body["status"] == "success"
+    assert "Successfully joined" in body["message"]
+
+    # Verify membership persisted in DB
+    membership = HouseholdMember.query.filter_by(household_id=hh_id, user_id=sub_user.id).first()
+    assert membership is not None
+    assert membership.role == "member"
+
+
+def test_join_household_admin_bypass_success(client):
+    """System administrators bypass the subscription requirement to join households."""
+    token_creator = register_user(client, "creator5@example.com", "Creator Five", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Aundh Residency", "address": "DP Road, Aundh, Pune"}
+    )
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    # Admin user without subscription
+    token_admin = register_user(client, "sysadmin@roomilink.ai", "Sys Admin", role="admin", subscribe=False)
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_admin}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join.status_code == 200
+    assert res_join.get_json()["status"] == "success"
+
+
+def test_join_household_subscribed_user_invalid_code(client):
+    """Eligible subscribed user providing an invalid invite code receives 404."""
+    token_sub = register_user(client, "sub_invalid@example.com", "Sub Invalid", subscribe=True)
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"invite_code": "NONEXIST"}
+    )
+    assert res_join.status_code == 404
+    body = res_join.get_json()
+    assert body["status"] == "error"
+    assert "Invalid invite code" in body["message"]
+
+
+def test_join_household_subscribed_user_missing_code(client):
+    """Eligible subscribed user providing an empty invite code receives 400."""
+    token_sub = register_user(client, "sub_empty@example.com", "Sub Empty", subscribe=True)
+
+    res_join = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"invite_code": ""}
+    )
+    assert res_join.status_code == 400
+    body = res_join.get_json()
+    assert "Invite code is required" in body["message"]
+
+
+def test_join_household_already_member_conflict(client):
+    """Subscribed user attempting to join a household they are already part of receives 409."""
+    token_creator = register_user(client, "creator6@example.com", "Creator Six", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Baner Heights", "address": "Pan Card Club Road, Baner, Pune"}
+    )
+    invite_code = res_create.get_json()["data"]["invite_code"]
+
+    token_sub = register_user(client, "duplicate_joiner@example.com", "Duplicate Joiner", subscribe=True)
+
+    # First join -> 200
+    res_join1 = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join1.status_code == 200
+
+    # Second join -> 409 Conflict
+    res_join2 = client.post(
+        "/api/v1/household/join",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"invite_code": invite_code}
+    )
+    assert res_join2.status_code == 409
+    assert "already a member" in res_join2.get_json()["message"]
+
+
+def test_create_household_unsubscribed_forbidden(client):
+    """Unsubscribed users cannot create a household workspace (403 SUBSCRIPTION_REQUIRED)."""
+    token_unsub = register_user(client, "unsub_creator@example.com", "Unsub Creator", subscribe=False)
+
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_unsub}"},
+        json={"name": "Should Fail", "address": "Nowhere, Pune"}
+    )
+    assert res_create.status_code == 403
+    body = res_create.get_json()
+    assert body["code"] == "SUBSCRIPTION_REQUIRED"
+    assert body["upgrade_url"] == "/pricing"
+    assert "subscription is required" in body["message"].lower()
+
+    # Verify no household was created
+    hh = Household.query.filter_by(name="Should Fail").first()
+    assert hh is None
+
+
+def test_create_household_subscribed_user_success(client):
+    """Subscribed users can create a household workspace (201 Created)."""
+    token_sub = register_user(client, "sub_creator@example.com", "Sub Creator", subscribe=True)
+
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_sub}"},
+        json={"name": "Subscribed Space", "address": "Magarpatta City, Hadapsar, Pune"}
+    )
+    assert res_create.status_code == 201
+    body = res_create.get_json()
+    assert body["status"] == "success"
+    assert len(body["data"]["invite_code"]) == 8
+
 
 

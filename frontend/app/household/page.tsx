@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import {
@@ -13,7 +14,10 @@ import {
 } from "@/types/household";
 
 function HouseholdContent() {
+  const router = useRouter();
   const { isAuthenticated, user } = useAuth();
+
+  const isEligible = user?.role === "admin" || Boolean(user?.subscription?.is_active);
 
   const [household, setHousehold] = useState<HouseholdInfo | null>(null);
   const [members, setMembers] = useState<HouseholdMemberInfo[]>([]);
@@ -87,14 +91,28 @@ function HouseholdContent() {
   // Create Household handler
   const handleCreateHousehold = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Enforce subscription requirement: redirect unsubscribed users to /pricing
+    if (!isEligible) {
+      router.push("/pricing?reason=household_create");
+      return;
+    }
+
     setActionLoading(true);
     setError(null);
     try {
-      const res = await apiRequest<{ data: { household: HouseholdInfo } }>("/household/create", {
+      const res = await apiRequest<{ data: { household: HouseholdInfo }; code?: string; upgrade_url?: string }>("/household/create", {
         method: "POST",
         requiresAuth: true,
         body: { name: createName, address: createAddress },
       });
+
+      // Intercept 403 SUBSCRIPTION_REQUIRED response from backend
+      if (res.status === 403 && (res.data?.code === "SUBSCRIPTION_REQUIRED" || res.error?.toLowerCase().includes("subscription"))) {
+        router.push(res.data?.upgrade_url || "/pricing?reason=household_create");
+        return;
+      }
+
       if (res.data?.data) {
         await fetchHouseholdData();
       } else {
@@ -110,14 +128,28 @@ function HouseholdContent() {
   // Join Household handler
   const handleJoinHousehold = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Enforce subscription requirement: redirect unsubscribed users to /pricing
+    if (!isEligible) {
+      router.push("/pricing?reason=household_join");
+      return;
+    }
+
     setActionLoading(true);
     setError(null);
     try {
-      const res = await apiRequest<{ data: { household: HouseholdInfo } }>("/household/join", {
+      const res = await apiRequest<{ data: { household: HouseholdInfo }; code?: string; upgrade_url?: string }>("/household/join", {
         method: "POST",
         requiresAuth: true,
         body: { invite_code: joinCode.trim().toUpperCase() },
       });
+
+      // Intercept 403 SUBSCRIPTION_REQUIRED response from backend
+      if (res.status === 403 && (res.data?.code === "SUBSCRIPTION_REQUIRED" || res.error?.toLowerCase().includes("subscription"))) {
+        router.push(res.data?.upgrade_url || "/pricing?reason=household_join");
+        return;
+      }
+
       if (res.data?.data) {
         await fetchHouseholdData();
       } else {
@@ -321,6 +353,24 @@ function HouseholdContent() {
                 </div>
               </div>
 
+              {!isEligible && (
+                <div className="p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl flex items-start space-x-2.5 text-indigo-950 text-xs">
+                  <span className="text-base leading-none">⭐</span>
+                  <div>
+                    <p className="font-bold text-indigo-950">Subscription Required</p>
+                    <p className="text-[11px] text-indigo-800 mt-0.5 leading-relaxed">
+                      Creating a shared household workspace requires an active subscription.
+                    </p>
+                    <Link
+                      href="/pricing?reason=household_create"
+                      className="inline-flex items-center text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline mt-1"
+                    >
+                      View Plans &amp; Pricing &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleCreateHousehold} className="space-y-4 text-xs">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
@@ -353,9 +403,17 @@ function HouseholdContent() {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-indigo-100 transition cursor-pointer"
+                  className={`w-full py-3 rounded-xl font-bold shadow-md transition cursor-pointer ${
+                    !isEligible
+                      ? "bg-indigo-700 hover:bg-indigo-800 text-white shadow-indigo-100"
+                      : "bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white shadow-indigo-100"
+                  }`}
                 >
-                  {actionLoading ? "Creating Space..." : "Create & Generate Invite Code"}
+                  {actionLoading
+                    ? "Creating Space..."
+                    : !isEligible
+                    ? "Subscribe to Create Workspace"
+                    : "Create & Generate Invite Code"}
                 </button>
               </form>
             </div>
@@ -371,6 +429,24 @@ function HouseholdContent() {
                   <p className="text-xs text-slate-500">Connect to your roommates&apos; active space</p>
                 </div>
               </div>
+
+              {!isEligible && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start space-x-3 text-amber-950 text-xs">
+                  <span className="text-base leading-none mt-0.5">⭐</span>
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-950">Subscription Required to Join</p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Joining a household workspace via invite code requires an active subscription. Unsubscribed users will be redirected to choose a plan.
+                    </p>
+                    <Link
+                      href="/pricing?reason=household_join"
+                      className="inline-flex items-center text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline mt-0.5"
+                    >
+                      Explore Membership Plans &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleJoinHousehold} className="space-y-4 text-xs">
                 <div>
@@ -394,10 +470,18 @@ function HouseholdContent() {
 
                 <button
                   type="submit"
-                  disabled={actionLoading || joinCode.length < 8}
-                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-teal-100 transition cursor-pointer"
+                  disabled={actionLoading || (isEligible && joinCode.length < 8)}
+                  className={`w-full py-3 rounded-xl font-bold shadow-md transition cursor-pointer ${
+                    !isEligible
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-100"
+                      : "bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white shadow-teal-100"
+                  }`}
                 >
-                  {actionLoading ? "Joining..." : "Join Household"}
+                  {actionLoading
+                    ? "Joining..."
+                    : !isEligible
+                    ? "Subscribe to Join Household"
+                    : "Join Household"}
                 </button>
               </form>
             </div>

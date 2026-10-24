@@ -11,6 +11,7 @@ This document tracks all active issues created for the latest feature requiremen
 | **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Closed (PR [#41](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/41)) |
 | **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40) & [#46](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/46)) |
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
+| **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Closed |
 
 ---
 
@@ -99,3 +100,18 @@ This document tracks all active issues created for the latest feature requiremen
 * **Frontend**:
   * Add heart icon on room cards in `frontend/app/rooms/page.tsx` and details in `frontend/app/rooms/[id]/page.tsx`.
   * Add "Saved Rooms" filter button to view all bookmarked accommodations.
+
+---
+
+### Issue #49: Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Ensure unsubscribed users cannot join or create household workspaces; require an active subscription or admin role and redirect to `/pricing`.
+* **Backend**:
+  * In `POST /api/v1/household/join`, verify if `user.role != 'admin' and not user.get_active_subscription()`.
+  * Reject with `403 Forbidden` (`code: 'SUBSCRIPTION_REQUIRED'`, `upgrade_url: '/pricing'`).
+  * In `POST /api/v1/household/create`, enforce identical server-side subscription check.
+* **Frontend**:
+  * On `frontend/app/household/page.tsx`: Check `isEligible` (`user?.role === 'admin' || user?.subscription?.is_active`); if unsubscribed, redirect directly to `/pricing?reason=household_join`.
+  * Intercept 403 `SUBSCRIPTION_REQUIRED` API responses and redirect to `/pricing?reason=household_join`.
+  * Add visual badges and cues on the Join Household form explaining the subscription requirement.
+  * On `frontend/app/pricing/page.tsx`: Read query parameter `reason=household_join` and display a clear informational alert.

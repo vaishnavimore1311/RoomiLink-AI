@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import { SubscriptionPlan } from "@/types/subscription";
 import RazorpayPaymentModal from "@/components/RazorpayPaymentModal";
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
   const { user, isAuthenticated, refreshUser } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [activeTab, setActiveTab] = useState<"seeker" | "lister">("seeker");
@@ -118,6 +120,30 @@ export default function PricingPage() {
             </button>
           </div>
         </div>
+
+        {reason === "household_join" && (
+          <div className="max-w-2xl mx-auto p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-950 text-xs shadow-sm flex items-start space-x-3">
+            <span className="text-xl leading-none mt-0.5">⭐</span>
+            <div>
+              <p className="font-bold text-sm text-amber-900 mb-0.5">Subscription Required to Join Household</p>
+              <p className="text-amber-800 leading-relaxed">
+                Joining a household workspace via invite code requires an active subscription. Choose a plan below to activate your account and start collaborating with your roommates.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {reason === "household_create" && (
+          <div className="max-w-2xl mx-auto p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-950 text-xs shadow-sm flex items-start space-x-3">
+            <span className="text-xl leading-none mt-0.5">🏠</span>
+            <div>
+              <p className="font-bold text-sm text-indigo-900 mb-0.5">Subscription Required to Create Workspace</p>
+              <p className="text-indigo-800 leading-relaxed">
+                Creating a shared household workspace requires an active subscription. Select a plan below to access expense splitting, weekly chore rotations, and AI living agreements.
+              </p>
+            </div>
+          </div>
+        )}
 
         {successMessage && (
           <div className="max-w-xl mx-auto p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-semibold text-center shadow-sm">
@@ -250,4 +276,19 @@ export default function PricingPage() {
     </div>
   );
 }
+
+export default function PricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <PricingContent />
+    </Suspense>
+  );
+}
+
 
