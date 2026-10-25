@@ -47,11 +47,12 @@ def get_roommate_matches():
     except ValueError:
         max_budget = 99999
 
-    # Query all users with profiles and preferences
+    # Query all non-admin users with profiles and preferences
     query = (
         db.session.query(User, Profile, RoommatePreference)
         .join(Profile, User.id == Profile.user_id)
         .outerjoin(RoommatePreference, User.id == RoommatePreference.user_id)
+        .filter(User.role != "admin")
     )
 
     if current_user_id:
@@ -126,7 +127,7 @@ def get_match_breakdown(candidate_id):
         my_pref = get_or_create_default_pref(current_user_id)
 
     candidate = db.session.get(User, candidate_id)
-    if not candidate or not candidate.profile:
+    if not candidate or not candidate.profile or candidate.role == "admin":
         return jsonify({
             "status": "error",
             "message": "Candidate not found."

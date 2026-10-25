@@ -95,3 +95,16 @@ def test_roommate_filter_by_city(client):
     assert res.status_code == 200
     candidates = res.get_json()["data"]
     assert any(c["full_name"] == "Pune User" for c in candidates)
+
+
+def test_admin_excluded_from_roommate_matches(client):
+    create_user_with_prefs(client, "admin@test.com", "Admin User", role="admin")
+    create_user_with_prefs(client, "seeker@test.com", "Seeker User", role="seeker")
+
+    res = client.get("/api/v1/matching/roommates")
+    assert res.status_code == 200
+    candidates = res.get_json()["data"]
+    
+    # Verify admin is not in candidates list
+    assert not any(c["full_name"] == "Admin User" for c in candidates)
+    assert any(c["full_name"] == "Seeker User" for c in candidates)
