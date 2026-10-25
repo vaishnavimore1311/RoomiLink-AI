@@ -96,6 +96,20 @@ export default function Navbar() {
             )}
 
 
+            {/* Admin Center shortcut for Admins */}
+            {isAuthenticated && isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${
+                  isActive("/admin")
+                    ? "text-indigo-600 bg-indigo-50"
+                    : "text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                }`}
+              >
+                <span>🛡️</span> Admin Center
+              </Link>
+            )}
+
             <Link
               href="/pricing"
               className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -213,6 +227,17 @@ export default function Navbar() {
             </>
           )}
 
+
+          {/* Admin Center shortcut for Admins */}
+          {isAuthenticated && isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-md text-base font-bold text-purple-700 bg-purple-50"
+            >
+              🛡️ Admin Center
+            </Link>
+          )}
 
           <Link
             href="/pricing"

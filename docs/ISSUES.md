@@ -11,6 +11,8 @@ This document tracks all active issues created for the latest feature requiremen
 | **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Closed (PR [#41](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/41)) |
 | **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40) & [#46](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/46)) |
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
+| **#48** | [Bug / Auth] Fix Admin Login redirection to preferred page (/admin) instead of /rooms | **Vaishnavi Nagtilak** | `@vaishnavi110` | Bug / Authentication | [#48](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/48) | In Review (PR [#50](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/50)) |
+| **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect unsubscribed users to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Open |
 
 ---
 
@@ -99,3 +101,38 @@ This document tracks all active issues created for the latest feature requiremen
 * **Frontend**:
   * Add heart icon on room cards in `frontend/app/rooms/page.tsx` and details in `frontend/app/rooms/[id]/page.tsx`.
   * Add "Saved Rooms" filter button to view all bookmarked accommodations.
+
+---
+
+### Issue #48: Fix Admin Login redirection to preferred page (/admin) instead of /rooms
+* **Assigned**: Vaishnavi Nagtilak
+* **Goal**: When signing in using an administrator account (`admin@roomilink.ai`), the user must be routed directly to the Admin Center (`/admin`) instead of getting redirected to `/rooms`.
+* **Root Cause**:
+  * In `frontend/app/login/page.tsx`, an authenticated-user `useEffect` indiscriminately redirects all logged-in users to `router.push("/rooms")`.
+  * When `login()` sets user state in `AuthContext`, this `useEffect` executes before/overrides the role-specific redirect to `/admin`.
+* **Frontend Fixes**:
+  * In `frontend/app/login/page.tsx`:
+    * Update the authentication check to inspect `user.role`: if `user.role === "admin"`, route to `/admin`; if a `redirect` query parameter exists, route to `redirect`; otherwise route regular users to `/rooms` or `/dashboard`.
+    * Ensure `handleSubmit` similarly prioritizes `user.role === "admin" -> /admin`.
+  * In `frontend/app/admin/layout.tsx`:
+    * Ensure the "Sign In as Admin" button points to `/login?redirect=/admin`.
+  * In `frontend/components/Navbar.tsx`:
+    * Add a prominent "🛡️ Admin Center" navigation link for logged-in admin users so they can easily navigate back to `/admin` at all times.
+
+---
+
+### Issue #49: Restrict Household Hub joining via invite code to subscribed users and redirect unsubscribed users to /pricing
+* **Assigned**: Vaishnavi More (@vaishnavimore1311)
+* **Goal**: When an unsubscribed user enters an invite code to join a household in Household Hub (`/household`), they must not be permitted into the room/household workspace. Instead, they must be redirected to the subscription / pricing page (`/pricing`) to upgrade their plan.
+* **Backend Fixes**:
+  * In `backend/app/routes/household_routes.py`:
+    * In `POST /api/v1/household/join`, verify if `user.role != "admin" and not user.get_active_subscription()`.
+    * If unsubscribed, reject the request with `403 Forbidden` (`code: "SUBSCRIPTION_REQUIRED"`, `upgrade_url: "/pricing"`).
+    * Similarly enforce subscription check on `POST /api/v1/household/create`.
+* **Frontend Fixes**:
+  * In `frontend/app/household/page.tsx`:
+    * In `handleJoinHousehold`: check if the user is authenticated and has an active subscription (`user.subscription?.is_active` or `user.role === "admin"`).
+    * If the user is not subscribed, immediately redirect them to `/pricing?reason=household_join` with an explanatory notification.
+    * If the backend returns `SUBSCRIPTION_REQUIRED`, catch the error and redirect to `/pricing`.
+    * Provide clear visual cues on the Join Household form stating that an active subscription is required to join a shared workspace.
+

@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { register, isAuthenticated, user, isLoading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,12 +21,16 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // If already authenticated, redirect to rooms
+  // If already authenticated, redirect to appropriate portal
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/rooms");
+      if (user?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/rooms");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
   const validateForm = () => {
     if (!fullName.trim()) {
