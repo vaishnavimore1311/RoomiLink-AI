@@ -11,8 +11,8 @@ This document tracks all active issues created for the latest feature requiremen
 | **#37** | [QA & Feature Audit] Verify and validate all Household workspace features | **Sayali** | `@dsayali074-tech` | QA / Feature Validation | [#37](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/37) | Closed (PR [#41](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/41)) |
 | **#38** | [Feature] Host Inquiry Inbox - View and manage incoming room inquiries | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / Communication | [#38](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/38) | Closed (PR [#40](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/40) & [#46](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/46)) |
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
-| **#48** | [Bug / Auth] Fix Admin Login redirection to preferred page (/admin) instead of /rooms | **Vaishnavi Nagtilak** | `@vaishnavi110` | Bug / Authentication | [#48](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/48) | In Review (PR [#50](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/50)) |
-| **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect unsubscribed users to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Open |
+| **#48** | [Bug / Auth] Fix Admin Login redirection to preferred page (/admin) instead of /rooms | **Vaishnavi Nagtilak** | `@vaishnavi110` | Bug / Authentication | [#48](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/48) | Closed (PR [#50](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/50)) |
+| **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Closed (PR [#51](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/51)) |
 
 ---
 
@@ -121,18 +121,16 @@ This document tracks all active issues created for the latest feature requiremen
 
 ---
 
-### Issue #49: Restrict Household Hub joining via invite code to subscribed users and redirect unsubscribed users to /pricing
-* **Assigned**: Vaishnavi More (@vaishnavimore1311)
-* **Goal**: When an unsubscribed user enters an invite code to join a household in Household Hub (`/household`), they must not be permitted into the room/household workspace. Instead, they must be redirected to the subscription / pricing page (`/pricing`) to upgrade their plan.
+### Issue #49: Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Ensure unsubscribed users cannot join or create household workspaces; require an active subscription or admin role and redirect to `/pricing`.
 * **Backend Fixes**:
   * In `backend/app/routes/household_routes.py`:
-    * In `POST /api/v1/household/join`, verify if `user.role != "admin" and not user.get_active_subscription()`.
-    * If unsubscribed, reject the request with `403 Forbidden` (`code: "SUBSCRIPTION_REQUIRED"`, `upgrade_url: "/pricing"`).
-    * Similarly enforce subscription check on `POST /api/v1/household/create`.
+    * In `POST /api/v1/household/join`, verify if `user.role != 'admin' and not user.get_active_subscription()`.
+    * Reject with `403 Forbidden` (`code: 'SUBSCRIPTION_REQUIRED'`, `upgrade_url: '/pricing'`).
+    * In `POST /api/v1/household/create`, enforce identical server-side subscription check.
 * **Frontend Fixes**:
-  * In `frontend/app/household/page.tsx`:
-    * In `handleJoinHousehold`: check if the user is authenticated and has an active subscription (`user.subscription?.is_active` or `user.role === "admin"`).
-    * If the user is not subscribed, immediately redirect them to `/pricing?reason=household_join` with an explanatory notification.
-    * If the backend returns `SUBSCRIPTION_REQUIRED`, catch the error and redirect to `/pricing`.
-    * Provide clear visual cues on the Join Household form stating that an active subscription is required to join a shared workspace.
-
+  * On `frontend/app/household/page.tsx`: Check `isEligible` (`user?.role === 'admin' || user?.subscription?.is_active`); if unsubscribed, redirect directly to `/pricing?reason=household_join`.
+  * Intercept 403 `SUBSCRIPTION_REQUIRED` API responses and redirect to `/pricing?reason=household_join`.
+  * Add visual badges and cues on the Join Household form explaining the subscription requirement.
+  * On `frontend/app/pricing/page.tsx`: Read query parameter `reason=household_join` and display a clear informational alert.

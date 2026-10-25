@@ -14,6 +14,20 @@ household_bp = Blueprint("household", __name__)
 def create_household():
     """Create a new household workspace and generate unique invite code."""
     user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    active_sub = user.get_active_subscription()
+    if user.role != "admin" and not active_sub:
+        return jsonify({
+            "status": "error",
+            "code": "SUBSCRIPTION_REQUIRED",
+            "message": "An active subscription is required to create a household workspace. Please subscribe to a plan first.",
+            "required_plan": "any",
+            "upgrade_url": "/pricing"
+        }), 403
+
     data = request.get_json() or {}
 
     name = data.get("name", "").strip()
@@ -63,6 +77,20 @@ def create_household():
 def join_household():
     """Join an existing household using an 8-character invite code."""
     user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    active_sub = user.get_active_subscription()
+    if user.role != "admin" and not active_sub:
+        return jsonify({
+            "status": "error",
+            "code": "SUBSCRIPTION_REQUIRED",
+            "message": "An active subscription is required to join a household workspace. Please subscribe to a plan first.",
+            "required_plan": "any",
+            "upgrade_url": "/pricing"
+        }), 403
+
     data = request.get_json() or {}
 
     code = data.get("invite_code", "").strip().upper()

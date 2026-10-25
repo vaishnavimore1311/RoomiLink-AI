@@ -10,12 +10,12 @@ def client():
         yield app.test_client()
         db.drop_all()
 
-def register_user(client, email, name, ai_consent=True):
+def register_user(client, email, name, ai_consent=True, role="admin"):
     res = client.post("/api/v1/auth/register", json={
         "email": email,
         "password": "Password123!",
         "full_name": name,
-        "role": "seeker"
+        "role": role
     })
     token = res.get_json()["access_token"]
     if not ai_consent:
