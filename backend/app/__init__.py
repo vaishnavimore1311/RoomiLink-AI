@@ -40,6 +40,20 @@ def create_app(config_name=None):
 
     db.init_app(app)
 
+    # Root route for browser checks
+    @app.route("/", methods=["GET"])
+    @app.route("/api/v1", methods=["GET"])
+    @app.route("/api/v1/", methods=["GET"])
+    def root():
+        return jsonify({
+            "service": "RoomiLink AI REST API",
+            "status": "online",
+            "version": "1.0.0",
+            "health_check": "/api/v1/health",
+            "rooms_api": "/api/v1/rooms",
+            "roommates_api": "/api/v1/matching/roommates"
+        }), 200
+
     # Health check route
     @app.route("/api/v1/health", methods=["GET"])
     def health_check():

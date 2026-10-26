@@ -1,6 +1,17 @@
-// Central API client for communicating with Flask backend
+function getApiBaseUrl(): string {
+  let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+  url = url.trim();
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  url = url.replace(/\/+$/, "");
+  if (!url.endsWith("/api/v1")) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+}
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+const API_BASE_URL = getApiBaseUrl();
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   requiresAuth?: boolean;
