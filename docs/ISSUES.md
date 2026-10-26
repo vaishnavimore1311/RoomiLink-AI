@@ -13,6 +13,7 @@ This document tracks all active issues created for the latest feature requiremen
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
 | **#48** | [Bug / Auth] Fix Admin Login redirection to preferred page (/admin) instead of /rooms | **Vaishnavi Nagtilak** | `@vaishnavi110` | Bug / Authentication | [#48](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/48) | Closed (PR [#50](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/50)) |
 | **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Closed (PR [#51](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/51)) |
+| **#52** | [Data / Integrity] Ensure all Household Hub members have active Pro Seeker subscriptions | **Vaishnavi Nagtilak** | `@vaishnavi110` | Data / Security | [#52](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/52) | In Progress |
 
 ---
 
@@ -134,3 +135,15 @@ This document tracks all active issues created for the latest feature requiremen
   * Intercept 403 `SUBSCRIPTION_REQUIRED` API responses and redirect to `/pricing?reason=household_join`.
   * Add visual badges and cues on the Join Household form explaining the subscription requirement.
   * On `frontend/app/pricing/page.tsx`: Read query parameter `reason=household_join` and display a clear informational alert.
+
+---
+
+### Issue #52: Ensure all Household Hub members have active subscriptions
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Guarantee that all roommates residing in shared households (e.g., 'Blue Ridge Co-Living Loft') possess active subscriptions, maintaining consistency with Issue #49 subscription guards.
+* **Backend Fixes**:
+  * In `backend/seed.py`:
+    * Added `ensure_household_members_subscribed()` to automatically provision `Pro Seeker` subscriptions for all household roommates upon seeding.
+    * Ensured all 4 demo roommates (`sarah@example.com`, `alex@example.com`, `priya@example.com`, `marcus@example.com`) are linked to the active household and hold active `Pro Seeker` subscriptions.
+  * In `backend/tests/test_household.py`:
+    * Added automated regression test `test_ensure_household_members_subscribed` to verify subscription synchronization for household members.

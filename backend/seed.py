@@ -40,6 +40,7 @@ def seed_database():
         # Check if legacy demo users already seeded
         if User.query.filter_by(email="sarah@example.com").first():
             print("[+] Base roommate demo data already present.")
+            ensure_household_members_subscribed()
             return
 
         print("[*] Provisioning 4 diverse demo roommates in Pune...")
@@ -273,7 +274,8 @@ def seed_database():
         m_sarah = HouseholdMember(household_id=household.id, user_id=user_sarah.id, role="admin")
         m_alex = HouseholdMember(household_id=household.id, user_id=user_alex.id, role="member")
         m_priya = HouseholdMember(household_id=household.id, user_id=user_priya.id, role="member")
-        db.session.add_all([m_sarah, m_alex, m_priya])
+        m_marcus = HouseholdMember(household_id=household.id, user_id=user_marcus.id, role="member")
+        db.session.add_all([m_sarah, m_alex, m_priya, m_marcus])
         db.session.commit()
 
         # 7. Add Shared Expenses & Debts (INR)
@@ -327,8 +329,36 @@ def seed_database():
         agreement.set_clauses(ag_data["clauses"])
         db.session.add(agreement)
 
+        ensure_household_members_subscribed()
         db.session.commit()
         print("[+] SUCCESS! Base roommate demo data created.")
+
+
+def ensure_household_members_subscribed():
+    """Ensure all members of any active household have active subscriptions."""
+    pro_plan = SubscriptionPlan.query.filter_by(slug="pro_seeker").first()
+    if not pro_plan:
+        return
+    now = datetime.now(timezone.utc)
+    members = HouseholdMember.query.all()
+    count = 0
+    for m in members:
+        user = m.user
+        if user and user.role != "admin" and not user.get_active_subscription():
+            sub = UserSubscription(
+                user_id=user.id,
+                plan_id=pro_plan.id,
+                status="active",
+                starts_at=now,
+                expires_at=now + timedelta(days=365),
+                payment_reference="SEED_DEMO_ACTIVE"
+            )
+            db.session.add(sub)
+            count += 1
+            print(f"  [+] Activated Pro Seeker subscription for household member: {user.email}")
+    if count > 0:
+        db.session.commit()
+        print(f"[+] Successfully ensured all {count} household members have active subscriptions.")
 
 
 def seed_admin_and_pune_data(app):

@@ -582,4 +582,31 @@ def test_create_household_subscribed_user_success(client):
     assert len(body["data"]["invite_code"]) == 8
 
 
+def test_ensure_household_members_subscribed(client):
+    """Verify that ensure_household_members_subscribed guarantees all household members have active subscriptions."""
+    from seed import ensure_household_members_subscribed
+    token_creator = register_user(client, "creator_seed@test.com", "Creator Seed", subscribe=True)
+    res_create = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_creator}"},
+        json={"name": "Test Sub Hub", "address": "Baner, Pune"}
+    )
+    hh_id = res_create.get_json()["data"]["household"]["id"]
+
+    # Register an unsubscribed member and add them as member
+    register_user(client, "unsub_member@test.com", "Unsub Member", subscribe=False)
+    unsub_user = User.query.filter_by(email="unsub_member@test.com").first()
+    assert unsub_user.get_active_subscription() is None
+
+    db.session.add(HouseholdMember(household_id=hh_id, user_id=unsub_user.id, role="member"))
+    db.session.commit()
+
+    # Run ensure function
+    ensure_household_members_subscribed()
+
+    # Verify the member now has an active Pro Seeker subscription
+    assert unsub_user.get_active_subscription() is not None
+    assert unsub_user.get_active_subscription().plan.slug == "pro_seeker"
+
+
 
