@@ -1,17 +1,65 @@
-function getApiBaseUrl(): string {
-  let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
-  url = url.trim();
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = `https://${url}`;
+function normalizeApiUrl(url: string): string {
+  let cleaned = url.trim();
+  if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+    cleaned = `https://${cleaned}`;
   }
-  url = url.replace(/\/+$/, "");
-  if (!url.endsWith("/api/v1")) {
-    url = `${url}/api/v1`;
+  cleaned = cleaned.replace(/\/+$/, "");
+  if (!cleaned.endsWith("/api/v1")) {
+    cleaned = `${cleaned}/api/v1`;
   }
-  return url;
+  return cleaned;
 }
 
-const API_BASE_URL = getApiBaseUrl();
+export function getApiBaseUrl(): string {
+  // 1. Check runtime localStorage override (allows manual override in console: localStorage.setItem('roomilink_api_url', '...'))
+  if (typeof window !== "undefined") {
+    try {
+      const override = localStorage.getItem("roomilink_api_url");
+      if (override && override.trim()) {
+        return normalizeApiUrl(override);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Check process.env.NEXT_PUBLIC_API_URL
+  const rawEnv = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.trim() : "";
+
+  // If env var is set and contains a valid domain with a dot (e.g. "https://roomilink-backend.onrender.com" or "http://localhost:5000")
+  if (rawEnv && (rawEnv.includes(".") || rawEnv.includes("localhost"))) {
+    // If running in browser on HTTPS (e.g. on Render) but rawEnv is http://localhost, ignore to prevent mixed content
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && rawEnv.includes("localhost")) {
+      // Fall through to domain derivation below
+    } else {
+      return normalizeApiUrl(rawEnv);
+    }
+  }
+
+  // 3. If in browser, inspect window.location
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    // If running on Render (e.g. roomilink-frontend.onrender.com or roomilink-frontend-xxxx.onrender.com)
+    if (hostname.endsWith(".onrender.com")) {
+      const backendHost = hostname.includes("roomilink-frontend")
+        ? hostname.replace("roomilink-frontend", "roomilink-backend")
+        : (rawEnv && !rawEnv.includes(".") ? `${rawEnv}.onrender.com` : "roomilink-backend.onrender.com");
+      return `https://${backendHost}/api/v1`;
+    }
+    // If running on another remote host
+    if (rawEnv && !rawEnv.includes(".")) {
+      return `https://${rawEnv}.onrender.com/api/v1`;
+    }
+  }
+
+  // 4. If rawEnv was given without a dot (like "roomilink-backend")
+  if (rawEnv && !rawEnv.includes(".")) {
+    return `https://${rawEnv}.onrender.com/api/v1`;
+  }
+
+  // 5. Default to localhost:5000 for local dev
+  return "http://localhost:5000/api/v1";
+}
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   requiresAuth?: boolean;
@@ -40,7 +88,8 @@ export async function apiRequest<T = any>(
     }
   }
 
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const baseUrl = getApiBaseUrl();
+  const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
 
   const requestBody =
     body && typeof body !== "string" && !(body instanceof FormData)
@@ -63,8 +112,9 @@ export async function apiRequest<T = any>(
 
     return { data, status: response.status };
   } catch (err: any) {
+    console.error(`[RoomiLink API Error] Fetch failed for ${url}:`, err);
     return {
-      error: err?.message || "Network connection error. Ensure the backend server is running.",
+      error: err?.message || `Network connection error fetching from ${url}. Ensure the backend is reachable.`,
       status: 503,
     };
   }

@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -19,8 +19,31 @@ def create_app(config_name=None):
     app.config.from_object(config_by_name.get(config_name, config_by_name["default"]))
     
     # Initialize extensions with app
-    cors.init_app(app, origins=app.config.get("CORS_ORIGINS", ["http://localhost:3000"]), supports_credentials=True)
+    cors.init_app(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     jwt.init_app(app)
+
+    # Dynamic CORS origin reflection and OPTIONS preflight handling
+    @app.before_request
+    def handle_cors_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_default_options_response()
+            origin = request.headers.get("Origin") or "*"
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+            response.headers["Access-Control-Max-Age"] = "86400"
+            return response
+
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get("Origin")
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+        return response
     
     # Dual-mode database verification with graceful SQLite fallback
     db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")

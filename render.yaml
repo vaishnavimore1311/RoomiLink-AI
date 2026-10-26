@@ -36,8 +36,11 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npx next start -p $PORT
     envVars:
-      - key: NEXT_PUBLIC_API_URL
+      - key: BACKEND_HOST
         fromService:
           type: web
           name: roomilink-backend
           property: host
+      - key: NEXT_PUBLIC_API_URL
+        value: https://${BACKEND_HOST}.onrender.com/api/v1
+
