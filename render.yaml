@@ -1,0 +1,43 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Flask REST API Backend
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: roomilink-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: mysql+pymysql://2kk8zuV9Lwu6hhv.root:rLZpO1D1N9ofW07Y@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/test?ssl_verify_cert=true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: RAZORPAY_KEY_ID
+        value: rzp_test_RoomiLinkDemo2026
+      - key: RAZORPAY_KEY_SECRET
+        value: roomilink_secret_demo_key_9988
+
+  # ---------------------------------------------------------------------------
+  # 2. Next.js Frontend Application
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: roomilink-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx next start -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: roomilink-backend
+          property: host
