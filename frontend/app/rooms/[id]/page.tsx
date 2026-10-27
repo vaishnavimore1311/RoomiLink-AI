@@ -8,6 +8,7 @@ import { SubscriptionPlan } from "@/types/subscription";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import RazorpayPaymentModal from "@/components/RazorpayPaymentModal";
+import MatchExplanationModal from "@/components/MatchExplanationModal";
 
 function RoomDetailContent() {
   const params = useParams();
@@ -29,9 +30,10 @@ function RoomDetailContent() {
   const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
 
-  // Paywall & Razorpay Modal States
+  // Paywall, Razorpay & Match Modal States
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showMatchModal, setShowMatchModal] = useState(false);
   const [proSeekerPlan, setProSeekerPlan] = useState<SubscriptionPlan | null>(null);
   const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
@@ -280,9 +282,23 @@ function RoomDetailContent() {
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
               <div>
                 <div className="flex items-start justify-between gap-4">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {room.title}
-                  </h1>
+                  <div>
+                    {room.listing_purpose === "flatmate_share" && (
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-900 border border-purple-200 shadow-xs">
+                          <span>🤝</span> Flatmate Room-Share &bull; Splitting Rent &amp; Bills
+                        </span>
+                        {room.preferred_gender && room.preferred_gender !== "any" && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-pink-50 text-pink-700 border border-pink-200">
+                            {room.preferred_gender === "female" ? "♀ Female Flatmate Preferred" : "♂ Male Flatmate Preferred"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                      {room.title}
+                    </h1>
+                  </div>
                   <button
                     type="button"
                     onClick={handleToggleFavorite}
@@ -370,20 +386,228 @@ function RoomDetailContent() {
               </div>
 
               {/* Specs Bar */}
-              <div className="grid grid-cols-3 gap-3 py-4 border-y border-slate-100 text-center">
-                <div>
-                  <span className="text-[11px] font-medium text-slate-400 uppercase">Room Type</span>
-                  <p className="text-sm font-bold text-slate-800 capitalize mt-0.5">{room.room_type}</p>
+              {room.listing_purpose === "flatmate_share" ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 border-y border-slate-100 text-center">
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Room Type</span>
+                    <p className="text-sm font-bold text-slate-800 capitalize mt-0.5">{room.room_type}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Occupancy</span>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">
+                      {room.current_occupants || 1} / {room.max_occupants || 2} Beds ({Math.max(1, (room.max_occupants || 2) - (room.current_occupants || 1))} Open)
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Deposit Share</span>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">₹{(room.deposit_amount || 0).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Move-In</span>
+                    <p className="text-sm font-bold text-emerald-600 mt-0.5">{room.available_from || "Immediate"}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[11px] font-medium text-slate-400 uppercase">Deposit</span>
-                  <p className="text-sm font-bold text-slate-800 mt-0.5">₹{(room.deposit_amount || 0).toLocaleString("en-IN")}</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3 py-4 border-y border-slate-100 text-center">
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Room Type</span>
+                    <p className="text-sm font-bold text-slate-800 capitalize mt-0.5">{room.room_type}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Deposit</span>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">₹{(room.deposit_amount || 0).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-slate-400 uppercase">Availability</span>
+                    <p className="text-sm font-bold text-emerald-600 mt-0.5">{room.available_from || "Immediate"}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[11px] font-medium text-slate-400 uppercase">Availability</span>
-                  <p className="text-sm font-bold text-emerald-600 mt-0.5">{room.available_from || "Immediate"}</p>
+              )}
+
+              {/* Utility & Bill Split Details (Flatmate Share) */}
+              {room.listing_purpose === "flatmate_share" && room.utility_split_desc && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900 flex items-start gap-2.5">
+                  <span className="text-base shrink-0">💡</span>
+                  <div>
+                    <span className="font-bold text-indigo-950">Domestic Bills &amp; Rent Split Terms:</span>
+                    <p className="text-indigo-800 mt-0.5">{room.utility_split_desc}</p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Meet Your Future Roommate Card (Flatmate Room-Share Exclusive) */}
+              {room.listing_purpose === "flatmate_share" && room.existing_flatmate && (
+                <div className="rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-purple-950 text-white p-6 sm:p-7 shadow-xl shadow-indigo-950/20 border border-indigo-800/60 relative overflow-hidden space-y-6">
+                  {/* Decorative background glow */}
+                  <div className="absolute -top-16 -right-16 w-56 h-56 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  {/* Section Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 mb-2">
+                        <span>🤝</span> Resident Flatmate Profile
+                      </div>
+                      <h2 className="text-xl font-black tracking-tight text-white">
+                        Meet Your Future Roommate
+                      </h2>
+                      <p className="text-xs text-indigo-200/80 mt-0.5">
+                        You&apos;ll be sharing this flat with {room.existing_flatmate.name}. Review their lifestyle and AI compatibility.
+                      </p>
+                    </div>
+
+                    {/* Live AI Compatibility Badge */}
+                    {room.existing_flatmate.compatibility_score !== undefined && room.existing_flatmate.compatibility_score !== null ? (
+                      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 text-center sm:text-right shrink-0">
+                        <div className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-200">
+                          AI Compatibility
+                        </div>
+                        <div className="text-2xl font-black text-emerald-400 flex items-center justify-center sm:justify-end gap-1">
+                          <span>{room.existing_flatmate.compatibility_score}%</span>
+                          <span className="text-xs font-bold text-emerald-300">Match</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-2 text-center text-xs text-indigo-200 shrink-0">
+                        Sign in to view match score
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Profile Card Summary */}
+                  <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-10">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-teal-400 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-indigo-900/50 shrink-0">
+                      {room.existing_flatmate.avatar_url ? (
+                        <img src={room.existing_flatmate.avatar_url} alt={room.existing_flatmate.name} className="w-full h-full object-cover rounded-2xl" />
+                      ) : (
+                        room.existing_flatmate.name.charAt(0)
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-bold text-white">{room.existing_flatmate.name}</h3>
+                        {room.existing_flatmate.is_verified && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <span>✓</span> Verified ID
+                          </span>
+                        )}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-indigo-200">
+                          Current Tenant
+                        </span>
+                      </div>
+                      <p className="text-xs text-indigo-200 font-medium">
+                        {room.existing_flatmate.occupation || "Working Professional"} &bull; {room.existing_flatmate.city || room.city}
+                      </p>
+                      {room.existing_flatmate.bio && (
+                        <p className="text-xs text-indigo-100/90 italic leading-relaxed pt-1">
+                          &ldquo;{room.existing_flatmate.bio}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Lifestyle & Habit Badges */}
+                  <div className="space-y-2 relative z-10">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                      Living Habits &amp; Daily Rhythm
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {room.existing_flatmate.sleep_schedule && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs">
+                          <span className="text-indigo-300 block text-[10px] uppercase font-bold">Sleep Schedule</span>
+                          <span className="font-semibold text-white capitalize mt-0.5 block truncate">
+                            🌙 {room.existing_flatmate.sleep_schedule.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      )}
+                      {room.existing_flatmate.cleanliness && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs">
+                          <span className="text-indigo-300 block text-[10px] uppercase font-bold">Cleanliness</span>
+                          <span className="font-semibold text-white capitalize mt-0.5 block truncate">
+                            🧹 {room.existing_flatmate.cleanliness.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      )}
+                      {room.existing_flatmate.noise_tolerance && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs">
+                          <span className="text-indigo-300 block text-[10px] uppercase font-bold">Noise Level</span>
+                          <span className="font-semibold text-white capitalize mt-0.5 block truncate">
+                            🎧 {room.existing_flatmate.noise_tolerance.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      )}
+                      {room.existing_flatmate.guest_frequency && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs">
+                          <span className="text-indigo-300 block text-[10px] uppercase font-bold">Guest Policy</span>
+                          <span className="font-semibold text-white capitalize mt-0.5 block truncate">
+                            👥 {room.existing_flatmate.guest_frequency.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Live Compatibility Breakdown Bar & Strengths */}
+                  {room.existing_flatmate.compatibility_score !== undefined && room.existing_flatmate.compatibility_score !== null && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 relative z-10">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-white flex items-center gap-1.5">
+                          <span>✨</span> Algorithmic Compatibility Index
+                        </span>
+                        <span className="font-bold text-emerald-300">
+                          {room.existing_flatmate.compatibility_score}% Harmonious Match
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full bg-black/30 h-2 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            room.existing_flatmate.compatibility_score >= 80
+                              ? "bg-gradient-to-r from-emerald-400 to-teal-300"
+                              : room.existing_flatmate.compatibility_score >= 60
+                              ? "bg-gradient-to-r from-indigo-400 to-cyan-400"
+                              : "bg-gradient-to-r from-amber-400 to-rose-400"
+                          }`}
+                          style={{ width: `${room.existing_flatmate.compatibility_score}%` }}
+                        />
+                      </div>
+
+                      {/* Strengths Pills */}
+                      {room.existing_flatmate.strengths && room.existing_flatmate.strengths.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-300">
+                            Why you&apos;ll get along:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {room.existing_flatmate.strengths.map((str, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-400/20 text-emerald-200 text-[11px] font-medium"
+                              >
+                                ✓ {str}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Interactive Breakdown Modal Trigger */}
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setShowMatchModal(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/10 cursor-pointer active:scale-95"
+                        >
+                          <span>📊 View 8-Factor Compatibility Breakdown</span>
+                          <span>&rarr;</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Description */}
               <div>
@@ -425,14 +649,20 @@ function RoomDetailContent() {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-5 sticky top-24">
               <div className="flex items-center space-x-3.5 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-100">
-                  {room.lister_name?.charAt(0) || "H"}
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-100 shrink-0">
+                  {room.listing_purpose === "flatmate_share" && room.existing_flatmate
+                    ? room.existing_flatmate.name.charAt(0)
+                    : room.lister_name?.charAt(0) || "H"}
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">{room.lister_name}</h3>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    {room.listing_purpose === "flatmate_share" && room.existing_flatmate
+                      ? room.existing_flatmate.name
+                      : room.lister_name}
+                  </h3>
                   <div className="flex items-center space-x-1.5 mt-0.5">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Verified Host
+                      {room.listing_purpose === "flatmate_share" ? "Resident Flatmate" : "Verified Host"}
                     </span>
                   </div>
                 </div>
@@ -440,13 +670,19 @@ function RoomDetailContent() {
 
               <div className="space-y-3 text-xs text-slate-600">
                 <div className="flex justify-between">
-                  <span>Monthly Rent:</span>
-                  <span className="font-bold text-slate-900">₹{room.rent_amount?.toLocaleString("en-IN")}</span>
+                  <span>{room.listing_purpose === "flatmate_share" ? "Your Share of Rent:" : "Monthly Rent:"}</span>
+                  <span className="font-bold text-slate-900">₹{room.rent_amount?.toLocaleString("en-IN")}{room.listing_purpose === "flatmate_share" ? " / mo" : ""}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Security Deposit:</span>
+                  <span>{room.listing_purpose === "flatmate_share" ? "Your Share of Deposit:" : "Security Deposit:"}</span>
                   <span className="font-bold text-slate-900">₹{room.deposit_amount?.toLocaleString("en-IN")}</span>
                 </div>
+                {room.listing_purpose === "flatmate_share" && room.utility_split_desc && (
+                  <div className="flex justify-between items-center text-indigo-900 bg-indigo-50/70 p-2.5 rounded-xl text-[11px]">
+                    <span className="font-semibold shrink-0">Bills Split:</span>
+                    <span className="font-bold text-right truncate max-w-[140px]" title={room.utility_split_desc}>{room.utility_split_desc}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Move-In Date:</span>
                   <span className="font-bold text-slate-900">{room.available_from}</span>
@@ -493,13 +729,21 @@ function RoomDetailContent() {
               >
                 {isProSubscriber ? (
                   <>
-                    <span>✉️</span>
-                    <span>Contact Host / Send Inquiry</span>
+                    <span>{room.listing_purpose === "flatmate_share" ? "🤝" : "✉️"}</span>
+                    <span>
+                      {room.listing_purpose === "flatmate_share"
+                        ? `Apply to Share Room with ${room.existing_flatmate?.name || room.lister_name}`
+                        : "Contact Host / Send Inquiry"}
+                    </span>
                   </>
                 ) : (
                   <>
                     <span>🔒</span>
-                    <span>Contact Host (Unlock with Pro)</span>
+                    <span>
+                      {room.listing_purpose === "flatmate_share"
+                        ? `Apply to Share Room (Unlock with Pro)`
+                        : "Contact Host (Unlock with Pro)"}
+                    </span>
                   </>
                 )}
               </button>
@@ -602,12 +846,20 @@ function RoomDetailContent() {
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-scaleUp">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-extrabold text-lg text-slate-900">Message {room.lister_name}</h3>
-                <p className="text-[11px] text-slate-500">Direct Priority Inquiry for {room.title}</p>
+                <h3 className="font-extrabold text-lg text-slate-900">
+                  {room.listing_purpose === "flatmate_share" && room.existing_flatmate
+                    ? `Message ${room.existing_flatmate.name}`
+                    : `Message ${room.lister_name}`}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  {room.listing_purpose === "flatmate_share"
+                    ? `Direct Flatmate Room-Share Inquiry for ${room.title}`
+                    : `Direct Priority Inquiry for ${room.title}`}
+                </p>
               </div>
               <button
                 onClick={() => setShowInquiryModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold cursor-pointer"
               >
                 &times;
               </button>
@@ -633,7 +885,9 @@ function RoomDetailContent() {
                 </div>
                 <p className="font-bold text-sm">Inquiry Delivered Successfully!</p>
                 <p className="text-xs text-emerald-600">
-                  {room.lister_name} has received your direct message and verified contact details.
+                  {room.listing_purpose === "flatmate_share" && room.existing_flatmate
+                    ? `${room.existing_flatmate.name} has received your flatmate application and direct message.`
+                    : `${room.lister_name} has received your direct message and verified contact details.`}
                 </p>
               </div>
             ) : (
@@ -647,7 +901,11 @@ function RoomDetailContent() {
                     required
                     value={inquiryMessage}
                     onChange={(e) => setInquiryMessage(e.target.value)}
-                    placeholder={`Hi ${room.lister_name}, I am interested in viewing this room. I work hybrid in Pune and would like to schedule a viewing...`}
+                    placeholder={
+                      room.listing_purpose === "flatmate_share"
+                        ? `Hi ${room.existing_flatmate?.name || room.lister_name}, I'm interested in sharing this room with you! I think our daily schedules, cleanliness habits, and lifestyle will align really well.`
+                        : `Hi ${room.lister_name}, I am interested in viewing this room. I work hybrid in Pune and would like to schedule a viewing...`
+                    }
                     className="w-full p-3 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none placeholder:text-slate-400"
                   />
                 </div>
@@ -671,7 +929,7 @@ function RoomDetailContent() {
                         <span>Sending...</span>
                       </>
                     ) : (
-                      <span>Send Message &rarr;</span>
+                      <span>{room.listing_purpose === "flatmate_share" ? "Send Application \u2192" : "Send Message \u2192"}</span>
                     )}
                   </button>
                 </div>
@@ -710,6 +968,16 @@ function RoomDetailContent() {
           setShowInquiryModal(true);
         }}
       />
+
+      {/* 8-Factor Live Compatibility Breakdown Modal */}
+      {showMatchModal && room.existing_flatmate && (
+        <MatchExplanationModal
+          candidateId={room.existing_flatmate.id}
+          candidateName={room.existing_flatmate.name}
+          initialScore={room.existing_flatmate.compatibility_score || 85}
+          onClose={() => setShowMatchModal(false)}
+        />
+      )}
 
       {/* Toast Notification */}
       {favoriteToast && (
