@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import { RoomInquiry, RoomListing } from "@/types/room";
+import { VerificationDocument } from "@/types/auth";
+import PhotoIdUploader from "@/components/PhotoIdUploader";
 
 function DashboardContent() {
   const router = useRouter();
@@ -13,9 +15,20 @@ function DashboardContent() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
 
   const tabParam = searchParams.get("tab");
-  const initialTab = tabParam === "inquiries" ? "inbox" : tabParam === "saved" ? "saved" : "overview";
-  const [activeTab, setActiveTab] = useState<"overview" | "inbox" | "saved">(initialTab);
+  const initialTab =
+    tabParam === "inquiries"
+      ? "inbox"
+      : tabParam === "saved"
+      ? "saved"
+      : tabParam === "verification"
+      ? "verification"
+      : "overview";
+  const [activeTab, setActiveTab] = useState<"overview" | "inbox" | "saved" | "verification">(initialTab);
   const [inboxSubTab, setInboxSubTab] = useState<"received" | "sent">("received");
+
+  // Verification Document State
+  const [verificationDoc, setVerificationDoc] = useState<VerificationDocument | null>(user?.verification_document || null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   // Inquiries State
   const [receivedInquiries, setReceivedInquiries] = useState<RoomInquiry[]>([]);
@@ -94,12 +107,31 @@ function DashboardContent() {
     }
   }, [isAuthenticated]);
 
+  const fetchVerificationStatus = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setVerificationLoading(true);
+    try {
+      const res = await apiRequest<{ data: { has_uploaded: boolean; is_verified: boolean; document: VerificationDocument | null } }>(
+        "/auth/verification/status",
+        { requiresAuth: true }
+      );
+      if (res.data?.data) {
+        setVerificationDoc(res.data.data.document || null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch verification status:", err);
+    } finally {
+      setVerificationLoading(false);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchInquiries();
       fetchSavedRooms();
+      fetchVerificationStatus();
     }
-  }, [isAuthenticated, fetchInquiries, fetchSavedRooms]);
+  }, [isAuthenticated, fetchInquiries, fetchSavedRooms, fetchVerificationStatus]);
 
   const handleRemoveSavedRoom = async (roomId: number) => {
     setSavedRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -179,6 +211,25 @@ function DashboardContent() {
                     Admin
                   </span>
                 )}
+                {/* Verification Status Badge/Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("verification")}
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold cursor-pointer transition ${
+                    user.is_verified
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : verificationDoc
+                      ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
+                      : "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
+                  }`}
+                  title="Click to view Account Verification"
+                >
+                  {user.is_verified
+                    ? "✓ Verified"
+                    : verificationDoc
+                    ? "⏳ ID Submitted"
+                    : "⚠️ Verify ID"}
+                </button>
               </div>
               <p className="text-sm text-slate-500 mt-1">
                 {user.email} &bull; <span className="capitalize">{user.role}</span> &bull; {profile?.city || "City not set"}
@@ -257,12 +308,54 @@ function DashboardContent() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("verification")}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "verification"
+                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            }`}
+          >
+            <span>🪪 ID Verification</span>
+            {user.is_verified ? (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  activeTab === "verification"
+                    ? "bg-white text-indigo-600"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                Verified
+              </span>
+            ) : verificationDoc ? (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  activeTab === "verification"
+                    ? "bg-white text-indigo-600"
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                }`}
+              >
+                Submitted
+              </span>
+            ) : (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  activeTab === "verification"
+                    ? "bg-white text-indigo-600"
+                    : "bg-slate-100 text-slate-600 border border-slate-200"
+                }`}
+              >
+                Required
+              </span>
+            )}
+          </button>
         </div>
 
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Lifestyle Compatibility Card */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between">
               <div>
@@ -359,6 +452,47 @@ function DashboardContent() {
               </Link>
             </div>
           </div>
+
+          {/* Account Verification & Trust Badge Callout */}
+          <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 rounded-2xl p-6 text-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">🛡️</span>
+                <h3 className="font-bold text-base text-white">
+                  Identity &amp; Account Verification
+                </h3>
+                {user.is_verified ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950">
+                    Verified Member
+                  </span>
+                ) : verificationDoc ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
+                    Pending Review
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-200">
+                    Photo ID Required
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-indigo-200 leading-relaxed max-w-xl">
+                {user.is_verified
+                  ? "Your identity document is verified. Your profile and property listings display an emerald Verified trust badge."
+                  : verificationDoc
+                  ? `Your ${verificationDoc.document_type?.replace("_", " ")} photo has been securely submitted and is pending administrator review.`
+                  : "Upload a government ID, student ID, or property proof to earn a verified trust badge on your roommate profile or listings."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("verification")}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-indigo-900 hover:bg-indigo-50 shadow-sm transition whitespace-nowrap"
+            >
+              {verificationDoc ? "View / Update Photo ID →" : "Submit Photo ID Now →"}
+            </button>
+          </div>
+        </div>
         )}
 
         {/* TAB 2: INQUIRIES INBOX */}
@@ -789,6 +923,19 @@ function DashboardContent() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 4: VERIFICATION */}
+        {activeTab === "verification" && (
+          <div className="space-y-6">
+            <PhotoIdUploader
+              initialDocument={verificationDoc}
+              isVerified={user.is_verified}
+              onUploadSuccess={(doc) => {
+                setVerificationDoc(doc);
+              }}
+            />
           </div>
         )}
       </div>

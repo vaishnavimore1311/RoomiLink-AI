@@ -25,6 +25,26 @@ export interface RoommatePreferences {
   budget_max: number;
 }
 
+export interface VerificationDocument {
+  id: number;
+  user_id: number;
+  document_type: "government_id" | "college_id" | "property_proof" | string;
+  original_filename: string;
+  file_size?: number;
+  status: "submitted" | string;
+  uploaded_at?: string;
+}
+
+export interface VerificationStatusResponse {
+  status: "success" | "error";
+  data?: {
+    has_uploaded: boolean;
+    is_verified: boolean;
+    document?: VerificationDocument | null;
+  };
+  message?: string;
+}
+
 import { UserSubscription } from "./subscription";
 
 export interface User {
@@ -38,6 +58,7 @@ export interface User {
   profile?: UserProfile | null;
   preference?: RoommatePreferences | null;
   subscription?: UserSubscription | null;
+  verification_document?: VerificationDocument | null;
 }
 
 export interface AuthResponse {
