@@ -8,10 +8,10 @@ This document details the tracking issues, technical specifications, and securit
 
 | Issue # | Title | Labels | Target Area |
 | :--- | :--- | :--- | :--- |
-| **[#53](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/53)** | `feat(backend): Secure storage & database model for user/host Photo ID verification` | `enhancement`, `P0`, `backend`, `database` | Backend Models & Storage |
-| **[#54](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/54)** | `feat(backend): Authenticated Photo ID upload endpoint with format & size validation` | `enhancement`, `P0`, `backend`, `testing-qa` | Backend API & Validation |
-| **[#55](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/55)** | `feat(frontend): Photo ID upload UI with client preview, validation & replacement workflow` | `enhancement`, `P0`, `frontend` | Frontend UI / Dashboard |
-| **[#56](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/56)** | `test(qa): End-to-end testing & security validation for Photo ID upload` | `enhancement`, `testing-qa` | Pytest & E2E Validation |
+| **[#53](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/53)** | `feat(backend): Secure storage & database model for user/host Photo ID verification` | `enhancement`, `P0`, `backend`, `database` | Backend Models & Storage (Merged PR #68) |
+| **[#54](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/54)** | `feat(backend): Authenticated Photo ID upload endpoint with format & size validation` | `enhancement`, `P0`, `backend`, `testing-qa` | Backend API & Validation (Merged PR #71) |
+| **[#55](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/55)** | `feat(frontend): Photo ID upload UI with client preview, validation & replacement workflow` | `enhancement`, `P0`, `frontend` | Frontend UI / Dashboard (Merged PR #75) |
+| **[#56](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/56)** | `test(qa): End-to-end testing & security validation for Photo ID upload` | `enhancement`, `testing-qa` | Pytest & E2E Validation (Completed) |
 
 ---
 
