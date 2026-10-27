@@ -224,6 +224,7 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #65: feat(frontend): Flatmate Space-Share badges and filter pills on /rooms and /roommates
 * **GitHub Issue**: [#65](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/65)
+* **Status**: Completed & Merged (PR [#78](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/78))
 * **Goal**: Allow seekers to easily find peer-to-peer room shares across room search and roommate search pages.
 * **Frontend Changes**:
   * In `frontend/app/rooms/page.tsx`:
