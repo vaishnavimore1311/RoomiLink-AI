@@ -476,3 +476,143 @@ def test_favorite_unauthenticated_and_not_found(client):
     assert res_404.status_code == 404
 
 
+def test_create_flatmate_room_share_listing(client):
+    """Test that a subscribed seeker can list a flatmate room-share with split details."""
+    token = register_and_get_token(client, email="sarah_host@example.com", role="seeker")
+    subscribe_user("sarah_host@example.com", plan_slug="pro_seeker")
+
+    payload = {
+        "title": "1 Vacant Bed in Shared 2BHK Master Bedroom",
+        "description": "Looking for female flatmate to share room and rent.",
+        "address": "Tower 4, Blue Ridge Hinjewadi",
+        "city": "Pune",
+        "neighborhood": "Hinjewadi",
+        "property_type": "apartment",
+        "room_type": "shared",
+        "listing_purpose": "flatmate_share",
+        "rent_amount": 8000.0,
+        "deposit_amount": 15000.0,
+        "current_occupants": 1,
+        "max_occupants": 2,
+        "preferred_gender": "female",
+        "utility_split_desc": "Rent ₹8,000 + Wi-Fi & Electricity split 50/50",
+        "amenities": ["Wi-Fi", "AC", "Washing Machine"]
+    }
+
+    res = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json=payload
+    )
+    assert res.status_code == 201
+    data = res.get_json()["data"]
+    assert data["listing_purpose"] == "flatmate_share"
+    assert data["room"]["current_occupants"] == 1
+    assert data["room"]["max_occupants"] == 2
+    assert data["room"]["preferred_gender"] == "female"
+    assert data["room"]["utility_split_desc"] == "Rent ₹8,000 + Wi-Fi & Electricity split 50/50"
+
+
+def test_get_room_detail_returns_existing_flatmate_and_compatibility(client):
+    """Test that viewing a flatmate room-share returns existing flatmate profile and live compatibility score."""
+    # 1. Poster creates flatmate room share
+    poster_token = register_and_get_token(client, email="flatmate_poster@example.com", role="seeker")
+    subscribe_user("flatmate_poster@example.com", plan_slug="pro_seeker")
+
+    create_res = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {poster_token}"},
+        json={
+            "title": "Cozy Shared Room in Baner",
+            "description": "Twin sharing bed available immediately.",
+            "address": "Baner Road, Pune",
+            "city": "Pune",
+            "room_type": "shared",
+            "listing_purpose": "flatmate_share",
+            "rent_amount": 7500.0,
+            "deposit_amount": 10000.0,
+            "current_occupants": 1,
+            "max_occupants": 2,
+            "preferred_gender": "any",
+            "utility_split_desc": "Rent ₹7,500 + Wi-Fi split equally"
+        }
+    )
+    assert create_res.status_code == 201
+    room_id = create_res.get_json()["data"]["room_id"]
+
+    # 2. Viewer logs in and views the room detail
+    viewer_token = register_and_get_token(client, email="priya_applicant@example.com", role="seeker")
+    subscribe_user("priya_applicant@example.com", plan_slug="pro_seeker")
+
+    detail_res = client.get(
+        f"/api/v1/rooms/{room_id}",
+        headers={"Authorization": f"Bearer {viewer_token}"}
+    )
+    assert detail_res.status_code == 200
+    room_data = detail_res.get_json()["data"]
+    assert room_data["listing_purpose"] == "flatmate_share"
+    assert room_data["current_occupants"] == 1
+    assert room_data["utility_split_desc"] == "Rent ₹7,500 + Wi-Fi split equally"
+
+    # Verify flatmate and compatibility bridge
+    flatmate = room_data.get("existing_flatmate")
+    assert flatmate is not None
+    assert flatmate["email"] if "email" in flatmate else flatmate["name"]
+    assert isinstance(flatmate["compatibility_score"], int)
+    assert 10 <= flatmate["compatibility_score"] <= 100
+    assert len(flatmate["strengths"]) >= 1
+
+
+def test_filter_rooms_by_listing_purpose(client):
+    """Test filtering rooms by listing_purpose (flatmate_share vs landlord)."""
+    token = register_and_get_token(client, email="host_filter@example.com", role="lister")
+    subscribe_user("host_filter@example.com", plan_slug="host_premium")
+
+    # Create landlord room
+    client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Entire 1BHK Flat",
+            "description": "Independent flat",
+            "address": "Kothrud, Pune",
+            "city": "Pune",
+            "room_type": "private",
+            "listing_purpose": "landlord",
+            "rent_amount": 18000.0
+        }
+    )
+
+    # Create flatmate room share
+    client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Shared Room in 2BHK",
+            "description": "1 bed available",
+            "address": "Kothrud, Pune",
+            "city": "Pune",
+            "room_type": "shared",
+            "listing_purpose": "flatmate_share",
+            "rent_amount": 6000.0
+        }
+    )
+
+    # Filter for flatmate shares
+    res_share = client.get("/api/v1/rooms?purpose=flatmate_share")
+    assert res_share.status_code == 200
+    shares = res_share.get_json()["data"]
+    assert len(shares) >= 1
+    for item in shares:
+        assert item["listing_purpose"] == "flatmate_share"
+
+    # Filter for landlord rentals
+    res_landlord = client.get("/api/v1/rooms?purpose=landlord")
+    assert res_landlord.status_code == 200
+    landlords = res_landlord.get_json()["data"]
+    assert len(landlords) >= 1
+    for item in landlords:
+        assert item["listing_purpose"] == "landlord"
+
+
+
