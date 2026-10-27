@@ -11,6 +11,8 @@ import {
   LedgerData,
   ChoreItem,
   ExpenseItem,
+  ActivityItem,
+  ActivityParticipantInfo,
 } from "@/types/household";
 
 function HouseholdContent() {
@@ -22,7 +24,7 @@ function HouseholdContent() {
   const [household, setHousehold] = useState<HouseholdInfo | null>(null);
   const [members, setMembers] = useState<HouseholdMemberInfo[]>([]);
   const [myRole, setMyRole] = useState<string>("member");
-  const [activeTab, setActiveTab] = useState<"expenses" | "chores" | "members">("expenses");
+  const [activeTab, setActiveTab] = useState<"expenses" | "activities" | "chores" | "members">("expenses");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,23 @@ function HouseholdContent() {
   const [expTitle, setExpTitle] = useState("");
   const [expAmount, setExpAmount] = useState("");
   const [expCategory, setExpCategory] = useState("Groceries");
+
+  // Activities & Group Expenses state
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
+  const [actTitle, setActTitle] = useState("");
+  const [actDesc, setActDesc] = useState("");
+  const [actDate, setActDate] = useState(new Date().toISOString().split("T")[0]);
+  const [actCategory, setActCategory] = useState("Party / Outing");
+  const [actAmount, setActAmount] = useState("");
+  const [actPayerId, setActPayerId] = useState<number | string>("");
+  const [actParticipants, setActParticipants] = useState<number[]>([]);
+  const [actSplitMethod, setActSplitMethod] = useState<"equal" | "custom">("equal");
+  const [actCustomShares, setActCustomShares] = useState<Record<number, string>>({});
+  const [actNotes, setActNotes] = useState("");
+  const [actError, setActError] = useState<string | null>(null);
+  const [actSubmitting, setActSubmitting] = useState(false);
 
   // Chores state
   const [chores, setChores] = useState<ChoreItem[]>([]);
@@ -65,15 +84,17 @@ function HouseholdContent() {
         setMembers(res.data.data.members);
         setMyRole(res.data.data.my_role);
 
-        // Fetch ledger and chores in parallel
+        // Fetch ledger, chores, and activities in parallel
         const hhId = res.data.data.household.id;
-        const [ledgerRes, choresRes] = await Promise.all([
+        const [ledgerRes, choresRes, activitiesRes] = await Promise.all([
           apiRequest<{ data: LedgerData }>(`/household/${hhId}/expenses`, { requiresAuth: true }),
           apiRequest<{ data: ChoreItem[] }>(`/household/${hhId}/chores`, { requiresAuth: true }),
+          apiRequest<{ data: ActivityItem[] }>(`/household/${hhId}/activities`, { requiresAuth: true }),
         ]);
 
         if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
         if (choresRes.data?.data) setChores(choresRes.data.data);
+        if (activitiesRes.data?.data) setActivities(activitiesRes.data.data);
       } else {
         setHousehold(null);
       }
@@ -220,6 +241,144 @@ function HouseholdContent() {
       if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
     } catch (err: any) {
       alert("Failed to settle debt: " + err?.message);
+    }
+  };
+
+  // Open Add Activity Modal with defaults
+  const openAddActivityModal = () => {
+    setActTitle("");
+    setActDesc("");
+    setActDate(new Date().toISOString().split("T")[0]);
+    setActCategory("Party / Outing");
+    setActAmount("");
+    setActPayerId(user?.id || (members.length > 0 ? members[0].user_id : ""));
+    setActParticipants(members.map((m) => m.user_id));
+    setActSplitMethod("equal");
+    setActCustomShares({});
+    setActNotes("");
+    setActError(null);
+    setShowAddActivityModal(true);
+  };
+
+  const handleToggleParticipant = (userId: number) => {
+    setActParticipants((prev) => {
+      if (prev.includes(userId)) {
+        return prev.filter((id) => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+
+  const handleSelectAllParticipants = () => {
+    setActParticipants(members.map((m) => m.user_id));
+  };
+
+  const handleDeselectAllParticipants = () => {
+    setActParticipants([]);
+  };
+
+  const handleCustomShareChange = (userId: number, value: string) => {
+    setActCustomShares((prev) => ({
+      ...prev,
+      [userId]: value,
+    }));
+  };
+
+  // Create Activity Expense handler
+  const handleCreateActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!household) return;
+
+    setActError(null);
+
+    // Validation
+    if (!actTitle.trim()) {
+      setActError("Activity name is required.");
+      return;
+    }
+
+    const totalNum = parseFloat(actAmount);
+    if (isNaN(totalNum) || totalNum <= 0) {
+      setActError("Total amount must be greater than zero.");
+      return;
+    }
+
+    if (actParticipants.length === 0) {
+      setActError("Please select at least one participating roommate.");
+      return;
+    }
+
+    const payer = actPayerId ? parseInt(String(actPayerId)) : user?.id;
+    if (!payer) {
+      setActError("Please select who paid for this activity.");
+      return;
+    }
+
+    let customSharesPayload: Record<number, number> | undefined = undefined;
+    if (actSplitMethod === "custom") {
+      let sumCustomCents = 0;
+      const targetCents = Math.round(totalNum * 100);
+      customSharesPayload = {};
+
+      for (const uid of actParticipants) {
+        const valStr = actCustomShares[uid];
+        const valNum = valStr !== undefined && valStr !== "" ? parseFloat(valStr) : 0;
+        if (isNaN(valNum) || valNum < 0) {
+          setActError("Custom share amounts must be valid non-negative numbers.");
+          return;
+        }
+        const cents = Math.round(valNum * 100);
+        sumCustomCents += cents;
+        customSharesPayload[uid] = valNum;
+      }
+
+      if (sumCustomCents !== targetCents) {
+        setActError(
+          `Custom shares sum to ₹${(sumCustomCents / 100).toFixed(2)}, which does not match total ₹${totalNum.toFixed(2)}.`
+        );
+        return;
+      }
+    }
+
+    setActSubmitting(true);
+    try {
+      const res = await apiRequest<{ data: ActivityItem }>(
+        `/household/${household.id}/activities`,
+        {
+          method: "POST",
+          requiresAuth: true,
+          body: {
+            title: actTitle.trim(),
+            description: actDesc.trim() || undefined,
+            category: actCategory,
+            total_amount: totalNum,
+            payer_id: payer,
+            participant_ids: actParticipants,
+            split_method: actSplitMethod,
+            custom_shares: customSharesPayload,
+            activity_date: actDate,
+            notes: actNotes.trim() || undefined,
+          },
+        }
+      );
+
+      if (res.error) {
+        setActError(res.error);
+      } else {
+        setShowAddActivityModal(false);
+        // Refresh ledger and activities
+        const [ledgerRes, actRes] = await Promise.all([
+          apiRequest<{ data: LedgerData }>(`/household/${household.id}/expenses`, { requiresAuth: true }),
+          apiRequest<{ data: ActivityItem[] }>(`/household/${household.id}/activities`, { requiresAuth: true }),
+        ]);
+        if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
+        if (actRes.data?.data) setActivities(actRes.data.data);
+      }
+    } catch (err: any) {
+      setActError(err?.message || "Failed to create activity expense.");
+    } finally {
+      setActSubmitting(false);
     }
   };
 
@@ -540,6 +699,7 @@ function HouseholdContent() {
         <div className="flex border-b border-slate-200 space-x-6 text-sm font-semibold">
           {[
             { id: "expenses", label: "💰 Shared Expenses & Ledger" },
+            { id: "activities", label: "🎉 Activities & Group Expenses" },
             { id: "chores", label: "🧹 Chore Rotations" },
             { id: "members", label: "👥 Roommate Roster" },
           ].map((tab) => (
@@ -609,12 +769,20 @@ function HouseholdContent() {
                     Calculated automatically from shared purchases
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowAddExpenseModal(true)}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition"
-                >
-                  + Add Expense
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openAddActivityModal}
+                    className="px-3.5 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition flex items-center gap-1.5"
+                  >
+                    <span>🎉</span> Add Group Activity
+                  </button>
+                  <button
+                    onClick={() => setShowAddExpenseModal(true)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition"
+                  >
+                    + Add Expense
+                  </button>
+                </div>
               </div>
 
               {!ledger?.debts?.length ? (
@@ -714,10 +882,25 @@ function HouseholdContent() {
                             ? "🛒"
                             : exp.category === "Utilities"
                             ? "💡"
+                            : exp.category.toLowerCase().includes("party") || exp.category.toLowerCase().includes("outing")
+                            ? "🎉"
+                            : exp.category.toLowerCase().includes("food") || exp.category.toLowerCase().includes("dining")
+                            ? "🍕"
+                            : exp.category.toLowerCase().includes("movie")
+                            ? "🎬"
+                            : exp.category.toLowerCase().includes("furniture")
+                            ? "🛋️"
                             : "📦"}
                         </span>
                         <div>
-                          <p className="font-semibold text-slate-900">{exp.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-slate-900">{exp.title}</p>
+                            {exp.activity_id && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-200">
+                                🎉 Group Activity {exp.participant_count ? `(${exp.participant_count} roommates)` : ""}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-slate-400">
                             Paid by {exp.payer_name} · {exp.category}
                           </p>
@@ -731,6 +914,181 @@ function HouseholdContent() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* TAB 2: ACTIVITIES & GROUP EXPENSES */}
+        {activeTab === "activities" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <span>🎉</span> Activities & Group Expenses
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Organize outings, dinners, parties, or bulk purchases and split contributions strictly among participating roommates.
+                </p>
+              </div>
+              <button
+                onClick={openAddActivityModal}
+                className="px-4 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition flex items-center justify-center gap-1.5 self-start sm:self-auto"
+              >
+                <span>+</span> Create Group Expense
+              </button>
+            </div>
+
+            {!activities.length ? (
+              <div className="bg-white rounded-2xl p-12 border border-slate-200/80 text-center space-y-4">
+                <div className="w-16 h-16 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center text-3xl mx-auto">
+                  🎉
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-900 text-base">No Group Activities Yet</h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Plan shared events without burdening non-participating roommates. Only selected participants will be allocated shares in the ledger.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto pt-2 text-left">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <span className="text-base">🎂</span>
+                    <p className="font-bold text-slate-800">Birthday Parties</p>
+                    <p className="text-[10px] text-slate-400">Share food & decor costs</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <span className="text-base">🍕</span>
+                    <p className="font-bold text-slate-800">Food Delivery</p>
+                    <p className="text-[10px] text-slate-400">Split dinner among eaters</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <span className="text-base">🎬</span>
+                    <p className="font-bold text-slate-800">Movie Nights</p>
+                    <p className="text-[10px] text-slate-400">Tickets & snacks outing</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <span className="text-base">🛋️</span>
+                    <p className="font-bold text-slate-800">Shared Items</p>
+                    <p className="text-[10px] text-slate-400">Furniture, appliances, trips</p>
+                  </div>
+                </div>
+                <div className="pt-3">
+                  <button
+                    onClick={openAddActivityModal}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition"
+                  >
+                    Create Your First Activity
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {activities.map((act) => {
+                  const isPayer = act.payer_id === user?.id;
+                  const myParticipant = act.participants.find((p) => p.user_id === user?.id);
+                  const isParticipant = Boolean(myParticipant);
+
+                  return (
+                    <div
+                      key={act.id}
+                      className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:border-indigo-300 transition flex flex-col justify-between space-y-4"
+                    >
+                      <div className="space-y-3">
+                        {/* Header badge & Category */}
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-slate-100 text-slate-700 flex items-center gap-1">
+                            {act.category.toLowerCase().includes("party")
+                              ? "🎂"
+                              : act.category.toLowerCase().includes("food") || act.category.toLowerCase().includes("dining")
+                              ? "🍕"
+                              : act.category.toLowerCase().includes("movie")
+                              ? "🎬"
+                              : act.category.toLowerCase().includes("grocer")
+                              ? "🛒"
+                              : act.category.toLowerCase().includes("furniture")
+                              ? "🛋️"
+                              : "🎉"}{" "}
+                            {act.category}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                            {act.split_method === "equal" ? "Equal Split" : "Custom Split"}
+                          </span>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-base">{act.title}</h4>
+                          {act.description && (
+                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                              {act.description}
+                            </p>
+                          )}
+                          {act.activity_date && (
+                            <p className="text-[11px] text-slate-400 mt-1">
+                              📅 {new Date(act.activity_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Total Amount & Payer */}
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[11px] text-slate-500">Total Expense</span>
+                            <span className="text-lg font-black text-slate-900">
+                              ₹{act.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] pt-0.5 border-t border-slate-200/60">
+                            <span className="text-slate-500">Paid by</span>
+                            <span className="font-semibold text-indigo-700">
+                              {act.payer_name} {isPayer ? "(You)" : ""}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Participating Roommates */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-slate-600">
+                              Participants ({act.participants.length})
+                            </span>
+                            {isParticipant ? (
+                              <span className="font-bold text-emerald-600 text-[10px]">
+                                Your Share: ₹{myParticipant?.share_amount.toFixed(2)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">
+                                You are not participating (₹0)
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {act.participants.map((p) => (
+                              <span
+                                key={p.id}
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-medium border ${
+                                  p.user_id === user?.id
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-bold"
+                                    : "bg-slate-50 text-slate-700 border-slate-200"
+                                }`}
+                              >
+                                {p.user_name}: ₹{p.share_amount.toFixed(2)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <button
+                        onClick={() => setSelectedActivity(act)}
+                        className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                      >
+                        View Full Breakdown &rarr;
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1014,6 +1372,425 @@ function HouseholdContent() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Add Activity / Create Group Expense */}
+        {showAddActivityModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl my-8">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🎉</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">Create Group Activity Expense</h3>
+                    <p className="text-[11px] text-slate-500">Collect contributions strictly from participating roommates</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAddActivityModal(false)}
+                  className="text-slate-400 hover:text-slate-700 font-bold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {actError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                  ⚠️ {actError}
+                </div>
+              )}
+
+              <form onSubmit={handleCreateActivity} className="space-y-4 text-xs">
+                {/* Activity Name */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Activity Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={actTitle}
+                    onChange={(e) => setActTitle(e.target.value)}
+                    placeholder="e.g. Birthday Party, Movie Outing, Shared Furniture"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+
+                {/* Category & Date */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                    <select
+                      value={actCategory}
+                      onChange={(e) => setActCategory(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    >
+                      <option value="Party / Outing">🎉 Party / Outing</option>
+                      <option value="Food & Dining">🍕 Food & Dining</option>
+                      <option value="Groceries">🛒 Groceries</option>
+                      <option value="Movie Outing">🎬 Movie Outing</option>
+                      <option value="Trip / Travel">✈️ Trip / Travel</option>
+                      <option value="Shared Furniture">🛋️ Shared Furniture</option>
+                      <option value="Other">📦 Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Activity Date</label>
+                    <input
+                      type="date"
+                      value={actDate}
+                      onChange={(e) => setActDate(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Amount & Who Paid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Total Amount (₹ INR) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={actAmount}
+                      onChange={(e) => setActAmount(e.target.value)}
+                      placeholder="e.g. 3000"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Person Who Paid <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={actPayerId}
+                      onChange={(e) => setActPayerId(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    >
+                      {members.map((m) => (
+                        <option key={m.user_id} value={m.user_id}>
+                          {m.user_name} {m.user_id === user?.id ? "(You)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Participant Selection */}
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-slate-700">
+                      Select Participating Roommates <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllParticipants}
+                        className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllParticipants}
+                        className="text-slate-500 hover:text-slate-700"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400">
+                    Only checked roommates will contribute. Unchecked roommates are excluded and will owe ₹0.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {members.map((m) => {
+                      const isChecked = actParticipants.includes(m.user_id);
+                      return (
+                        <label
+                          key={m.user_id}
+                          className={`p-2.5 rounded-xl border flex items-center space-x-2.5 cursor-pointer transition ${
+                            isChecked
+                              ? "bg-indigo-50/60 border-indigo-200 text-indigo-950"
+                              : "bg-slate-50 border-slate-200 text-slate-500 opacity-60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleParticipant(m.user_id)}
+                            className="w-4 h-4 text-indigo-600 rounded-md border-slate-300"
+                          />
+                          <span className="font-semibold text-xs truncate">
+                            {m.user_name} {m.user_id === user?.id ? "(You)" : ""}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Split Method Toggle */}
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <label className="block font-semibold text-slate-700">Split Method</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActSplitMethod("equal")}
+                      className={`py-2 rounded-xl text-xs font-bold border transition ${
+                        actSplitMethod === "equal"
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      Equal Split
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActSplitMethod("custom")}
+                      className={`py-2 rounded-xl text-xs font-bold border transition ${
+                        actSplitMethod === "custom"
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      Custom Split
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Split Preview / Custom Inputs */}
+                {actSplitMethod === "equal" ? (
+                  <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-1.5 text-xs text-indigo-950">
+                    <p className="font-bold flex items-center justify-between">
+                      <span>Equal Split Breakdown</span>
+                      <span className="text-[11px] font-normal text-indigo-700">
+                        {actParticipants.length} participant{actParticipants.length === 1 ? "" : "s"}
+                      </span>
+                    </p>
+                    {actParticipants.length > 0 && parseFloat(actAmount) > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-indigo-800">
+                          Total ₹{parseFloat(actAmount).toFixed(2)} divided among {actParticipants.length} selected roommate{actParticipants.length === 1 ? "" : "s"}:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {actParticipants.map((uid, idx) => {
+                            const member = members.find((m) => m.user_id === uid);
+                            const totalCents = Math.round(parseFloat(actAmount) * 100);
+                            const baseCents = Math.floor(totalCents / actParticipants.length);
+                            const rem = totalCents % actParticipants.length;
+                            const share = (baseCents + (idx < rem ? 1 : 0)) / 100;
+                            return (
+                              <span key={uid} className="px-2 py-0.5 bg-white rounded-md border border-indigo-200 font-semibold text-[11px]">
+                                {member?.user_name || `User ${uid}`}: ₹{share.toFixed(2)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-indigo-600">
+                        Enter a total amount and select at least one roommate to preview shares.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-slate-800">Custom Participant Contributions</p>
+                      {parseFloat(actAmount) > 0 && (
+                        (() => {
+                          const totalTargetCents = Math.round(parseFloat(actAmount) * 100);
+                          const sumCents = actParticipants.reduce((sum, uid) => {
+                            const val = parseFloat(actCustomShares[uid] || "0");
+                            return sum + (isNaN(val) ? 0 : Math.round(val * 100));
+                          }, 0);
+                          const diff = (totalTargetCents - sumCents) / 100;
+                          return diff === 0 ? (
+                            <span className="text-emerald-600 font-bold text-[11px]">
+                              ✓ Sum matches ₹{parseFloat(actAmount).toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-bold text-[11px]">
+                              {diff > 0 ? `Remaining: ₹${diff.toFixed(2)}` : `Over by: ₹${Math.abs(diff).toFixed(2)}`}
+                            </span>
+                          );
+                        })()
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {actParticipants.map((uid) => {
+                        const member = members.find((m) => m.user_id === uid);
+                        return (
+                          <div key={uid} className="flex items-center justify-between gap-3">
+                            <span className="font-medium text-slate-700 truncate w-1/2">
+                              {member?.user_name || `User ${uid}`}
+                            </span>
+                            <div className="flex items-center gap-1 w-1/2">
+                              <span className="text-slate-400">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                value={actCustomShares[uid] || ""}
+                                onChange={(e) => handleCustomShareChange(uid, e.target.value)}
+                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-right font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description & Notes */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Description / Notes <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={actNotes}
+                    onChange={(e) => setActNotes(e.target.value)}
+                    placeholder="Add details, receipt reference, or outing highlights..."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden text-xs"
+                  />
+                </div>
+
+                {/* Form Buttons */}
+                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddActivityModal(false)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actSubmitting}
+                    className="px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {actSubmitting ? "Saving Activity..." : "Save & Record Split"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Activity Full Details */}
+        {selectedActivity && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🎉</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">{selectedActivity.title}</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {selectedActivity.category} · {selectedActivity.split_method === "equal" ? "Equal Split" : "Custom Split"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedActivity(null)}
+                  className="text-slate-400 hover:text-slate-700 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Total & Payer Banner */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+                <div>
+                  <p className="text-slate-500">Total Expense</p>
+                  <p className="text-xl font-black text-slate-900">
+                    ₹{selectedActivity.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-slate-500">Paid in full by</p>
+                  <p className="font-bold text-indigo-700 text-sm">{selectedActivity.payer_name}</p>
+                </div>
+              </div>
+
+              {/* Member Contribution Breakdown */}
+              <div className="space-y-2 text-xs">
+                <h4 className="font-bold text-slate-800">Roommate Share Breakdown</h4>
+                <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
+                  {members.map((m) => {
+                    const participant = selectedActivity.participants.find((p) => p.user_id === m.user_id);
+                    const isPayer = m.user_id === selectedActivity.payer_id;
+
+                    return (
+                      <div key={m.user_id} className="p-3 flex items-center justify-between bg-white">
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-slate-900">
+                            {m.user_name} {isPayer ? <span className="text-[10px] text-indigo-600 font-bold">(Payer)</span> : ""}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {participant
+                              ? isPayer
+                                ? "Paid total bill · covers own share"
+                                : "Participating · owes share to payer"
+                              : "Did not participate (₹0 debt)"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p
+                            className={`font-bold text-xs ${
+                              participant ? "text-slate-900" : "text-slate-300"
+                            }`}
+                          >
+                            ₹{(participant ? participant.share_amount : 0).toFixed(2)}
+                          </p>
+                          <span
+                            className={`text-[10px] font-medium ${
+                              participant
+                                ? isPayer
+                                ? "text-emerald-600 font-bold"
+                                : "text-amber-600"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {participant ? (isPayer ? "Self-funded" : "Unsettled") : "Excluded"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Notes if any */}
+              {selectedActivity.notes && (
+                <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+                  <p className="font-bold text-slate-700">Notes</p>
+                  <p className="text-slate-600 text-[11px]">{selectedActivity.notes}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedActivity(null)}
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

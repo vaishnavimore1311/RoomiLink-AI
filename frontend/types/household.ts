@@ -19,6 +19,37 @@ export interface HouseholdMemberInfo {
   avatar_url?: string | null;
 }
 
+export interface ActivityParticipantInfo {
+  id: number;
+  activity_id: number;
+  user_id: number;
+  user_name: string;
+  share_amount: number;
+  has_paid: boolean;
+  paid_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface ActivityItem {
+  id: number;
+  household_id: number;
+  created_by_id: number;
+  created_by_name: string;
+  payer_id: number;
+  payer_name: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  total_amount: number;
+  split_method: "equal" | "custom";
+  activity_date?: string | null;
+  notes?: string | null;
+  participant_count: number;
+  participants: ActivityParticipantInfo[];
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 export interface ExpenseItem {
   id: number;
   household_id: number;
@@ -28,6 +59,10 @@ export interface ExpenseItem {
   amount: number;
   category: string;
   split_type: string;
+  activity_id?: number | null;
+  activity_name?: string | null;
+  participant_count?: number | null;
+  participants?: ActivityParticipantInfo[] | null;
   created_at: string | null;
   payments: Array<{
     id: number;

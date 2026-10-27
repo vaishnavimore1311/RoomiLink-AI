@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models.household_models import Household, HouseholdMember, Expense, Payment, Chore
+from app.models.household_models import Household, HouseholdMember, Expense, Payment, Chore, Activity, ActivityParticipant
 from app.models.user_models import User
-from app.services.expense_service import add_household_expense, calculate_ledger, settle_debt_between_users
+from app.services.expense_service import add_household_expense, calculate_ledger, settle_debt_between_users, create_activity_expense
 
 household_bp = Blueprint("household", __name__)
 
@@ -254,6 +254,173 @@ def settle_debt(household_id):
     return jsonify({
         "status": "success",
         "message": f"Settled {settled_count} obligations successfully."
+    }), 200
+
+
+# ==================== ACTIVITY & GROUP EXPENSE ROUTES ====================
+
+@household_bp.route("/<int:household_id>/activities", methods=["GET"])
+@jwt_required()
+def list_activities(household_id):
+    """List all group activities and shared expenses for the household."""
+    user_id = int(get_jwt_identity())
+    membership = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    if not membership:
+        return jsonify({
+            "status": "error",
+            "message": "You must be a member of this household to view its activities."
+        }), 403
+
+    activities = Activity.query.filter_by(household_id=household_id).order_by(Activity.created_at.desc()).all()
+    return jsonify({
+        "status": "success",
+        "data": [act.to_dict(include_participants=True) for act in activities]
+    }), 200
+
+
+@household_bp.route("/<int:household_id>/activities", methods=["POST"])
+@jwt_required()
+def create_activity(household_id):
+    """Create a new group activity expense with participant-based splitting."""
+    user_id = int(get_jwt_identity())
+    membership = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    if not membership:
+        return jsonify({
+            "status": "error",
+            "message": "You must be a member of this household to create activities."
+        }), 403
+
+    data = request.get_json() or {}
+
+    title = data.get("title", "").strip()
+    description = data.get("description", "").strip()
+    category = data.get("category", "Party / Outing")
+    split_method = data.get("split_method", "equal")
+    notes = data.get("notes", "").strip()
+    activity_date = data.get("activity_date")
+
+    try:
+        total_amount = float(data.get("total_amount", 0))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Total amount must be a valid positive number."
+        }), 400
+
+    payer_id = data.get("payer_id")
+    if payer_id is None:
+        payer_id = user_id
+    else:
+        try:
+            payer_id = int(payer_id)
+        except (ValueError, TypeError):
+            return jsonify({
+                "status": "error",
+                "message": "Invalid payer ID."
+            }), 400
+
+    participant_ids = data.get("participant_ids")
+    if not participant_ids or not isinstance(participant_ids, list):
+        return jsonify({
+            "status": "error",
+            "message": "At least one participating roommate must be selected."
+        }), 400
+
+    custom_shares = data.get("custom_shares")
+
+    try:
+        activity = create_activity_expense(
+            household_id=household_id,
+            created_by_id=user_id,
+            payer_id=payer_id,
+            title=title,
+            total_amount=total_amount,
+            category=category,
+            split_method=split_method,
+            participant_ids=participant_ids,
+            custom_shares=custom_shares,
+            description=description,
+            activity_date=activity_date,
+            notes=notes
+        )
+        return jsonify({
+            "status": "success",
+            "message": "Activity expense created successfully.",
+            "data": activity.to_dict(include_participants=True)
+        }), 201
+    except ValueError as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to create activity: {str(e)}"
+        }), 500
+
+
+@household_bp.route("/<int:household_id>/activities/<int:activity_id>", methods=["GET"])
+@jwt_required()
+def get_activity_details(household_id, activity_id):
+    """Get complete details, participant breakdown, and shares for an activity."""
+    user_id = int(get_jwt_identity())
+    membership = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    if not membership:
+        return jsonify({
+            "status": "error",
+            "message": "You must be a member of this household to view its activities."
+        }), 403
+
+    activity = Activity.query.filter_by(id=activity_id, household_id=household_id).first()
+    if not activity:
+        return jsonify({
+            "status": "error",
+            "message": "Activity not found in this household."
+        }), 404
+
+    return jsonify({
+        "status": "success",
+        "data": activity.to_dict(include_participants=True)
+    }), 200
+
+
+@household_bp.route("/<int:household_id>/activities/<int:activity_id>", methods=["PATCH"])
+@jwt_required()
+def update_activity(household_id, activity_id):
+    """Update notes or description for an activity by creator or admin."""
+    user_id = int(get_jwt_identity())
+    membership = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    if not membership:
+        return jsonify({
+            "status": "error",
+            "message": "You must be a member of this household."
+        }), 403
+
+    activity = Activity.query.filter_by(id=activity_id, household_id=household_id).first()
+    if not activity:
+        return jsonify({
+            "status": "error",
+            "message": "Activity not found."
+        }), 404
+
+    if activity.created_by_id != user_id and membership.role != "admin":
+        return jsonify({
+            "status": "error",
+            "message": "Only the activity creator or household admin can update this activity."
+        }), 403
+
+    data = request.get_json() or {}
+    if "notes" in data:
+        activity.notes = str(data["notes"]).strip()
+    if "description" in data:
+        activity.description = str(data["description"]).strip()
+
+    db.session.commit()
+    return jsonify({
+        "status": "success",
+        "message": "Activity updated successfully.",
+        "data": activity.to_dict(include_participants=True)
     }), 200
 
 

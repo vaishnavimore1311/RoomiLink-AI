@@ -609,4 +609,505 @@ def test_ensure_household_members_subscribed(client):
     assert unsub_user.get_active_subscription().plan.slug == "pro_seeker"
 
 
+# ==================== ACTIVITY-BASED SHARED EXPENSES TESTS ====================
+
+def setup_four_roommate_household(client):
+    """Helper to set up a household with 4 roommates: Sneha (admin), Aditya, Priya, Rahul."""
+    t_sneha = register_user(client, "sneha@example.com", "Sneha", subscribe=True)
+    t_aditya = register_user(client, "aditya@example.com", "Aditya", subscribe=True)
+    t_priya = register_user(client, "priya@example.com", "Priya", subscribe=True)
+    t_rahul = register_user(client, "rahul@example.com", "Rahul", subscribe=True)
+
+    # Sneha creates household
+    res_c = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {t_sneha}"},
+        json={"name": "Palm Grove Villa", "address": "Kalyani Nagar, Pune"}
+    )
+    hh_data = res_c.get_json()["data"]["household"]
+    hh_id = hh_data["id"]
+    invite_code = hh_data["invite_code"]
+
+    # Aditya, Priya, Rahul join
+    for t in [t_aditya, t_priya, t_rahul]:
+        res_j = client.post(
+            "/api/v1/household/join",
+            headers={"Authorization": f"Bearer {t}"},
+            json={"invite_code": invite_code}
+        )
+        assert res_j.status_code == 200
+
+    u_sneha = User.query.filter_by(email="sneha@example.com").first()
+    u_aditya = User.query.filter_by(email="aditya@example.com").first()
+    u_priya = User.query.filter_by(email="priya@example.com").first()
+    u_rahul = User.query.filter_by(email="rahul@example.com").first()
+
+    return {
+        "household_id": hh_id,
+        "tokens": {
+            "sneha": t_sneha,
+            "aditya": t_aditya,
+            "priya": t_priya,
+            "rahul": t_rahul
+        },
+        "users": {
+            "sneha": u_sneha,
+            "aditya": u_aditya,
+            "priya": u_priya,
+            "rahul": u_rahul
+        }
+    }
+
+
+def test_scenario_1_and_2_four_roommates_three_participants_equal_split(client):
+    """Scenario 1 & 2: 4 roommates, 3 participants, ₹3,000 party expense, equal split.
+    Rahul is excluded and incurs ₹0 debt."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Sneha creates Birthday Party activity for ₹3,000 with Sneha, Aditya, Priya
+    res = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Birthday Party",
+            "category": "Party / Outing",
+            "total_amount": 3000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["priya"].id],
+            "split_method": "equal",
+            "description": "Party at Palm Grove terrace"
+        }
+    )
+    assert res.status_code == 201
+    act_data = res.get_json()["data"]
+    assert act_data["title"] == "Birthday Party"
+    assert act_data["participant_count"] == 3
+    assert act_data["total_amount"] == 3000.0
+
+    # Verify participant shares: Sneha, Aditya, Priya each have 1000.0
+    shares = {p["user_id"]: p["share_amount"] for p in act_data["participants"]}
+    assert shares[users["sneha"].id] == 1000.0
+    assert shares[users["aditya"].id] == 1000.0
+    assert shares[users["priya"].id] == 1000.0
+    assert users["rahul"].id not in shares
+
+    # Verify ledger from Sneha's view (Sneha paid 3000, covers her 1000 share, owed 2000)
+    res_sneha = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    ledger_s = res_sneha.get_json()["data"]
+    assert ledger_s["total_owed_to_me"] == 2000.0
+    assert ledger_s["total_i_owe"] == 0.0
+    assert ledger_s["net_balance"] == 2000.0
+
+    # Verify ledger from Aditya's view (Aditya owes Sneha 1000)
+    res_aditya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"}
+    )
+    ledger_a = res_aditya.get_json()["data"]
+    assert ledger_a["total_i_owe"] == 1000.0
+    assert ledger_a["total_owed_to_me"] == 0.0
+
+    # Verify ledger from Priya's view (Priya owes Sneha 1000)
+    res_priya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['priya']}"}
+    )
+    ledger_p = res_priya.get_json()["data"]
+    assert ledger_p["total_i_owe"] == 1000.0
+    assert ledger_p["total_owed_to_me"] == 0.0
+
+    # Scenario 2: Verify Rahul (nonparticipant) owes ₹0 and appears in NO debt obligations
+    res_rahul = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"}
+    )
+    ledger_r = res_rahul.get_json()["data"]
+    assert ledger_r["total_i_owe"] == 0.0
+    assert ledger_r["total_owed_to_me"] == 0.0
+    assert ledger_r["net_balance"] == 0.0
+    for debt in ledger_r["debts"]:
+        assert debt["from_user_id"] != users["rahul"].id
+        assert debt["to_user_id"] != users["rahul"].id
+
+
+def test_scenario_3_payer_not_participant(client):
+    """Scenario 3: One roommate pays on behalf of the group without participating.
+    Rahul pays ₹3,000 for Sneha, Aditya, and Priya. Rahul is not a participant."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    res = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"},
+        json={
+            "title": "Girls Night Food Order",
+            "category": "Food & Dining",
+            "total_amount": 3000.0,
+            "payer_id": users["rahul"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["priya"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res.status_code == 201
+
+    # Rahul paid full ₹3,000 on their behalf, so Rahul is owed ₹3,000 total
+    res_r = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"}
+    )
+    ledger_r = res_r.get_json()["data"]
+    assert ledger_r["total_owed_to_me"] == 3000.0
+    assert ledger_r["total_i_owe"] == 0.0
+    assert ledger_r["net_balance"] == 3000.0
+
+    # Sneha owes Rahul 1000
+    res_s = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_s.get_json()["data"]["total_i_owe"] == 1000.0
+
+
+def test_scenario_4_and_5_custom_split_and_invalid_sum(client):
+    """Scenario 4 & 5: Custom amounts per participant. Sum != total is rejected."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Invalid custom split: 1500 + 1000 + 400 = 2900 != 3000
+    res_invalid = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Road Trip Supplies",
+            "category": "Trip / Travel",
+            "total_amount": 3000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["priya"].id],
+            "split_method": "custom",
+            "custom_shares": {
+                str(users["sneha"].id): 1500.0,
+                str(users["aditya"].id): 1000.0,
+                str(users["priya"].id): 400.0
+            }
+        }
+    )
+    assert res_invalid.status_code == 400
+    assert "does not match the total expense" in res_invalid.get_json()["message"]
+
+    # Valid custom split: 1500 + 1000 + 500 = 3000
+    res_valid = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Road Trip Supplies",
+            "category": "Trip / Travel",
+            "total_amount": 3000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["priya"].id],
+            "split_method": "custom",
+            "custom_shares": {
+                str(users["sneha"].id): 1500.0,
+                str(users["aditya"].id): 1000.0,
+                str(users["priya"].id): 500.0
+            }
+        }
+    )
+    assert res_valid.status_code == 201
+    act_data = res_valid.get_json()["data"]
+    shares = {p["user_id"]: p["share_amount"] for p in act_data["participants"]}
+    assert shares[users["sneha"].id] == 1500.0
+    assert shares[users["aditya"].id] == 1000.0
+    assert shares[users["priya"].id] == 500.0
+
+
+def test_scenario_6_paise_rounding(client):
+    """Scenario 6: ₹100 split 3 ways requires paise distribution: 33.34 + 33.33 + 33.33 = 100.00."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    res = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Snacks Pack",
+            "category": "Groceries",
+            "total_amount": 100.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["priya"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res.status_code == 201
+    participants = res.get_json()["data"]["participants"]
+    total_shares = sum(p["share_amount"] for p in participants)
+    assert round(total_shares, 2) == 100.0
+    share_values = sorted([p["share_amount"] for p in participants])
+    assert share_values == [33.33, 33.33, 33.34]
+
+
+def test_scenario_7_single_and_multiple_participants(client):
+    """Scenario 7: One participant vs multiple participants."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Single participant: Sneha pays for her own specialty coffee
+    res_single = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Specialty Coffee",
+            "total_amount": 250.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res_single.status_code == 201
+    assert res_single.get_json()["data"]["participant_count"] == 1
+
+    # No debt should be created
+    res_ledger = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_ledger.get_json()["data"]["total_i_owe"] == 0.0
+    assert res_ledger.get_json()["data"]["total_owed_to_me"] == 0.0
+
+
+def test_scenario_8_two_separate_activities_disjoint_participants(client):
+    """Scenario 8: Two separate activities with different participant lists.
+    Activity A: Sneha, Aditya (Payer: Sneha, ₹1,000)
+    Activity B: Rahul, Aditya (Payer: Rahul, ₹800)
+    Priya is in neither. Aditya is in both."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Activity A
+    res_a = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Movie Tickets",
+            "total_amount": 1000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res_a.status_code == 201
+
+    # Activity B
+    res_b = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"},
+        json={
+            "title": "Gaming Tournament",
+            "total_amount": 800.0,
+            "payer_id": users["rahul"].id,
+            "participant_ids": [users["rahul"].id, users["aditya"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res_b.status_code == 201
+
+    # Check Aditya's ledger: owes Sneha 500, owes Rahul 400. Total i owe = 900.
+    res_aditya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"}
+    )
+    ledger_aditya = res_aditya.get_json()["data"]
+    assert ledger_aditya["total_i_owe"] == 900.0
+    assert len(ledger_aditya["debts"]) == 2
+
+    # Priya was in neither activity: owes 0
+    res_priya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['priya']}"}
+    )
+    assert res_priya.get_json()["data"]["total_i_owe"] == 0.0
+
+
+def test_scenario_9_cross_household_participant_rejected(client):
+    """Scenario 9: A participant from another household is rejected (400)."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Create another user in a completely different household
+    token_stranger = register_user(client, "stranger@other.com", "Stranger", subscribe=True)
+    res_other = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token_stranger}"},
+        json={"name": "Other House", "address": "Viman Nagar, Pune"}
+    )
+    assert res_other.status_code == 201
+    u_stranger = User.query.filter_by(email="stranger@other.com").first()
+
+    # Attempt to include stranger in hh_id activity
+    res_bad = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Beach Outing",
+            "total_amount": 1200.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, u_stranger.id],
+            "split_method": "equal"
+        }
+    )
+    assert res_bad.status_code == 400
+    assert "does not belong to this household" in res_bad.get_json()["message"]
+
+
+def test_scenario_10_unauthenticated_and_unauthorized_rejected(client):
+    """Scenario 10: Unauthenticated and unauthorized API requests are rejected."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    users = setup["users"]
+
+    # 1. Unauthenticated request (no JWT token) -> 401
+    res_unauth = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        json={
+            "title": "Test Party",
+            "total_amount": 1000.0,
+            "participant_ids": [users["sneha"].id]
+        }
+    )
+    assert res_unauth.status_code == 401
+
+    # 2. Unauthorized request (valid user but not member of this household) -> 403
+    t_outsider = register_user(client, "outsider@test.com", "Outsider", subscribe=True)
+    res_forbidden = client.get(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {t_outsider}"}
+    )
+    assert res_forbidden.status_code == 403
+
+
+def test_scenario_11_debt_settlement_with_activities(client):
+    """Scenario 11: Debt settlement works cleanly after activity expense without duplicate/inverted debts."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Sneha pays ₹2,000 for Party with Aditya
+    client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Dinner Outing",
+            "total_amount": 2000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id],
+            "split_method": "equal"
+        }
+    )
+
+    # Aditya owes Sneha 1000. Settle debt!
+    res_settle = client.post(
+        f"/api/v1/household/{hh_id}/settle",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"},
+        json={"to_user_id": users["sneha"].id}
+    )
+    assert res_settle.status_code == 200
+
+    # Aditya owes 0 now
+    res_a = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"}
+    )
+    assert res_a.get_json()["data"]["total_i_owe"] == 0.0
+
+
+def test_scenario_12_category_totals_and_history(client):
+    """Scenario 12: Category totals and recent expense history are updated correctly."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Create activity with category "Party / Outing"
+    res = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Diwali Celebration",
+            "category": "Party / Outing",
+            "total_amount": 5000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res.status_code == 201
+
+    # Check ledger expenses
+    res_ledger = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    data = res_ledger.get_json()["data"]
+    assert "Party / Outing" in data["category_breakdown"]
+    assert data["category_breakdown"]["Party / Outing"] == 5000.0
+
+    # Recent expenses has the activity info
+    recent = data["recent_expenses"]
+    assert len(recent) == 1
+    assert recent[0]["title"] == "Diwali Celebration"
+    assert recent[0]["participant_count"] == 2
+    assert recent[0]["activity_id"] is not None
+
+
+def test_scenario_13_duplicate_and_invalid_data_rejected(client):
+    """Scenario 13: Invalid data (empty title, zero amount, empty participants) is rejected."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Empty title
+    res_1 = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={"title": "", "total_amount": 100.0, "participant_ids": [users["sneha"].id]}
+    )
+    assert res_1.status_code == 400
+
+    # Zero amount
+    res_2 = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={"title": "Test", "total_amount": 0, "participant_ids": [users["sneha"].id]}
+    )
+    assert res_2.status_code == 400
+
+    # Empty participants
+    res_3 = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={"title": "Test", "total_amount": 100.0, "participant_ids": []}
+    )
+    assert res_3.status_code == 400
+
+
+
 
