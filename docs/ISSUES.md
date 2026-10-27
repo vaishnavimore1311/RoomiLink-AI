@@ -252,10 +252,16 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #67: test(qa): Automated test suite for flatmate room shares, subscription guards, and compatibility enrichment
 * **GitHub Issue**: [#67](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/67)
+* **Status**: Completed & Merged (PR [#80](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/80))
 * **Goal**: Guarantee automated regression prevention for peer-to-peer room shares.
-* **Testing Scope**:
+* **Testing Scope & Results**:
   * In `backend/tests/test_rooms.py`:
-    * `test_create_flatmate_room_share_listing`: Verify creation with `listing_purpose = "flatmate_share"` and split metadata.
-    * `test_get_room_returns_existing_flatmate_and_compatibility`: Verify response returns `existing_flatmate` block and compatibility score.
-    * Run `pytest` to ensure 100% test pass rate.
+    * `test_create_flatmate_room_share_listing`: Verified room creation with `listing_purpose = "flatmate_share"` and split metadata.
+    * `test_get_room_detail_returns_existing_flatmate_and_compatibility`: Verified response returns `existing_flatmate` block and live compatibility score.
+    * `test_filter_rooms_by_listing_purpose`: Verified filtering between `flatmate_share` and `landlord`.
+    * `test_create_flatmate_room_share_with_household_link`: Verified room listing linked to household workspace.
+    * `test_unsubscribed_seeker_cannot_create_flatmate_share`: Verified 403 `SUBSCRIPTION_REQUIRED` guard.
+  * In `backend/tests/test_matching.py`:
+    * `test_roommate_with_active_room_share_enriched`: Verified candidate profiles return `active_room_share` payload.
+  * Test Suite Status: **83 passed out of 83 tests (100% pass rate)**.
 
