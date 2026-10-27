@@ -19,6 +19,7 @@ class User(db.Model):
     preference = db.relationship("RoommatePreference", backref="user", uselist=False, cascade="all, delete-orphan")
     household_memberships = db.relationship("HouseholdMember", backref="user", lazy="dynamic")
     subscriptions = db.relationship("UserSubscription", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    verification_document = db.relationship("VerificationDocument", backref="user", uselist=False, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -44,7 +45,8 @@ class User(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "profile": self.profile.to_dict() if self.profile else None,
             "preference": self.preference.to_dict() if self.preference else None,
-            "subscription": active_sub.to_dict() if active_sub else None
+            "subscription": active_sub.to_dict() if active_sub else None,
+            "verification_document": self.verification_document.to_dict() if self.verification_document else None
         }
 
 
@@ -109,4 +111,29 @@ class RoommatePreference(db.Model):
             "pet_tolerance": self.pet_tolerance,
             "budget_min": self.budget_min,
             "budget_max": self.budget_max
+        }
+
+
+class VerificationDocument(db.Model):
+    __tablename__ = "verification_documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    document_type = db.Column(db.String(50), nullable=False, default="government_id")  # government_id, college_id, property_proof
+    file_path = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer, nullable=True)  # in bytes
+    status = db.Column(db.String(20), nullable=False, default="submitted")  # submitted
+    uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        """Returns non-sensitive metadata only. Never exposes raw server file paths or internal storage locations."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "document_type": self.document_type,
+            "original_filename": self.original_filename,
+            "file_size": self.file_size,
+            "status": self.status,
+            "uploaded_at": self.uploaded_at.isoformat() if self.uploaded_at else None
         }

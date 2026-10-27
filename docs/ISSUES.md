@@ -13,7 +13,22 @@ This document tracks all active issues created for the latest feature requiremen
 | **#39** | [Feature] Saved / Favorited Rooms - Bookmark and view favorite listings | **Vaishnavi Nagtilak** | `@vaishnavi110` | Feature / User Experience | [#39](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/39) | Closed (PR [#47](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/47)) |
 | **#48** | [Bug / Auth] Fix Admin Login redirection to preferred page (/admin) instead of /rooms | **Vaishnavi Nagtilak** | `@vaishnavi110` | Bug / Authentication | [#48](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/48) | Closed (PR [#50](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/50)) |
 | **#49** | [Feature / Subscription] Restrict Household Hub joining via invite code to subscribed users and redirect to /pricing | **Vaishnavi More** | `@vaishnavimore1311` | Security / Subscription | [#49](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/49) | Closed (PR [#51](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/51)) |
-| **#52** | [Data / Integrity] Ensure all Household Hub members have active Pro Seeker subscriptions | **Vaishnavi Nagtilak** | `@vaishnavi110` | Data / Security | [#52](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/52) | In Progress |
+| **#52** | [Data / Integrity] Ensure all Household Hub members have active Pro Seeker subscriptions | **Vaishnavi Nagtilak** | `@vaishnavi110` | Data / Security | [#52](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/52) | Closed |
+| **#53** | feat(backend): Secure storage & database model for user/host Photo ID verification | Vaishnavi More | `@vaishnavimore1311` | Security / Database | [#53](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/53) | Closed |
+| **#54** | feat(backend): Authenticated Photo ID upload endpoint with format & size validation | Vaishnavi More | `@vaishnavimore1311` | Backend / Security | [#54](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/54) | Open |
+| **#55** | feat(frontend): Photo ID upload UI with client preview, validation & replacement workflow | Vaishnavi More | `@vaishnavimore1311` | Frontend / Verification | [#55](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/55) | Open |
+| **#56** | test(qa): End-to-end testing & security validation for Photo ID upload | Vaishnavi More | `@vaishnavimore1311` | QA / Testing | [#56](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/56) | Open |
+| **#57** | feat(backend): Activity-based shared expense data model, schema & persistence | Vaishnavi More | `@vaishnavimore1311` | Backend / Database | [#57](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/57) | Open |
+| **#58** | feat(backend): Participant-aware debt ledger calculation & activity API endpoints | Vaishnavi More | `@vaishnavimore1311` | Backend / API | [#58](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/58) | Open |
+| **#59** | feat(frontend): Activities & Group Expenses UI with participant selection & split calculator | Vaishnavi More | `@vaishnavimore1311` | Frontend / UI | [#59](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/59) | Open |
+| **#60** | test(qa): Automated test suite for activity-based expense sharing & edge cases | Vaishnavi More | `@vaishnavimore1311` | QA / Testing | [#60](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/60) | Open |
+| **#61** | feat(backend): Extend Room model with flatmate sharing & replacement metadata | *Unassigned* | - | Backend / Database | [#61](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/61) | Open (In Progress) |
+| **#62** | feat(backend): Room creation & detail endpoints with flatmate compatibility bridge | *Unassigned* | - | Backend / API | [#62](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/62) | Open (Ready for Dev) |
+| **#63** | feat(frontend): Dual-Mode listing form (Landlord vs Tenant Room-Share) on /rooms/new | *Unassigned* | - | Frontend / Form UX | [#63](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/63) | Open (Ready for Dev) |
+| **#64** | feat(frontend): Meet Your Future Roommate profile & live AI compatibility widget on /rooms/[id] | *Unassigned* | - | Frontend / AI UI | [#64](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/64) | Open (Ready for Dev) |
+| **#65** | feat(frontend): Flatmate Space-Share badges and filter pills on /rooms and /roommates | *Unassigned* | - | Frontend / Discovery | [#65](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/65) | Open (Ready for Dev) |
+| **#66** | feat(frontend): 1-click Post Vacant Space replacement launcher inside Household Hub | *Unassigned* | - | Frontend / Household | [#66](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/66) | Open (Ready for Dev) |
+| **#67** | test(qa): Automated test suite for flatmate room shares, subscription guards, and compatibility enrichment | *Unassigned* | - | QA / Testing | [#67](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/67) | Open (Ready for Dev) |
 
 ---
 
@@ -147,3 +162,90 @@ This document tracks all active issues created for the latest feature requiremen
     * Ensured all 4 demo roommates (`sarah@example.com`, `alex@example.com`, `priya@example.com`, `marcus@example.com`) are linked to the active household and hold active `Pro Seeker` subscriptions.
   * In `backend/tests/test_household.py`:
     * Added automated regression test `test_ensure_household_members_subscribed` to verify subscription synchronization for household members.
+
+---
+
+### Issue #61: feat(backend): Extend Room model with flatmate sharing & replacement metadata
+* **GitHub Issue**: [#61](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/61)
+* **Goal**: Support metadata differentiating landlord rentals from peer-to-peer flatmate room-shares and replacement searches.
+* **Backend Changes**:
+  * In `backend/app/models/property_models.py`:
+    * Add columns to `Room`:
+      * `listing_purpose`: `db.String(30)`, default="landlord" (`'landlord'` | `'flatmate_share'`)
+      * `current_occupants`: `db.Integer`, default=1
+      * `max_occupants`: `db.Integer`, default=2
+      * `preferred_gender`: `db.String(20)`, default="any" (`'any'` | `'female'` | `'male'`)
+      * `utility_split_desc`: `db.String(255)`, nullable=True
+      * `household_id`: `db.Integer`, `db.ForeignKey("households.id")`, nullable=True
+    * Update `Room.to_dict()` to serialize the 6 new attributes.
+
+---
+
+### Issue #62: feat(backend): Room creation & detail endpoints with flatmate compatibility bridge
+* **GitHub Issue**: [#62](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/62)
+* **Goal**: Allow Seekers with active subscriptions to list a flatmate room-share, and enrich room detail responses with existing flatmate lifestyle profile and live compatibility score.
+* **Backend Changes**:
+  * In `backend/app/routes/room_routes.py`:
+    * `POST /api/rooms`: Parse `listing_purpose`, `current_occupants`, `max_occupants`, `preferred_gender`, `utility_split_desc`, and `household_id`. Enforce that any user with an active subscription (Seeker, Lister, or Admin) can create flatmate room shares.
+    * `GET /api/rooms/<id>`: If `listing_purpose == 'flatmate_share'`, fetch the poster's profile (`lister.profile`). If the viewing user is logged in, calculate live AI compatibility vector via `calculate_compatibility()` and return an `existing_flatmate` payload with match percentage and habit breakdown.
+    * `GET /api/rooms`: Support `?purpose=flatmate_share` / `?purpose=landlord` filter.
+
+---
+
+### Issue #63: feat(frontend): Dual-Mode listing form (Landlord vs Tenant Room-Share) on /rooms/new
+* **GitHub Issue**: [#63](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/63)
+* **Goal**: Allow users to toggle between posting as a commercial landlord vs an existing tenant sharing space to split rent.
+* **Frontend Changes**:
+  * In `frontend/app/rooms/new/page.tsx`:
+    * Add top mode tab: `[🏢 Landlord / Property Owner]` vs `[🤝 Existing Tenant / Share Rent]`.
+    * When "Existing Tenant" is active:
+      * Default `room_type` to `"shared"`.
+      * Show fields for Current Occupants count, Preferred Gender (Any/Female/Male), Monthly Rent Share (₹), and Utility Split Terms.
+      * Show helper callout: *"Your verified lifestyle profile will be linked to this listing to attract compatible roommates."*
+
+---
+
+### Issue #64: feat(frontend): Meet Your Future Roommate profile & live AI compatibility widget on /rooms/[id]
+* **GitHub Issue**: [#64](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/64)
+* **Goal**: Enable seekers viewing a shared room to see the existing occupant's profile and check compatibility before applying.
+* **Frontend Changes**:
+  * In `frontend/app/rooms/[id]/page.tsx`:
+    * If `room.listing_purpose === "flatmate_share"` and `room.existing_flatmate`:
+      * Render a dedicated "Meet Your Future Roommate" card.
+      * Display avatar, name, verified badge, and lifestyle pills (Sleep schedule, Cleanliness, Noise, Guest policy).
+      * Render live AI Compatibility Score widget (e.g. 94% Match) with a button opening the `MatchExplanationModal`.
+      * Change CTA button to: *"Apply to Share Room with [Name]"*.
+
+---
+
+### Issue #65: feat(frontend): Flatmate Space-Share badges and filter pills on /rooms and /roommates
+* **GitHub Issue**: [#65](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/65)
+* **Goal**: Allow seekers to easily find peer-to-peer room shares across room search and roommate search pages.
+* **Frontend Changes**:
+  * In `frontend/app/rooms/page.tsx`:
+    * Add filter pills: `All Rooms` | `Landlord Rentals` | `Flatmate Space-Share`.
+    * Display purple badge on room cards: `🟣 Flatmate Share • 1 Bed Available` with existing flatmate name.
+  * In `frontend/app/roommates/page.tsx`:
+    * If a roommate has an active room share listing, display an interactive badge: `🏠 Has an available bed in [City] (₹X/mo) - [View Room →]`.
+
+---
+
+### Issue #66: feat(frontend): 1-click Post Vacant Space replacement launcher inside Household Hub
+* **GitHub Issue**: [#66](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/66)
+* **Goal**: Allow remaining flatmates in a household workspace to initiate a replacement roommate search when someone moves out.
+* **Frontend Changes**:
+  * In `frontend/app/household/page.tsx`:
+    * Inside the Household Overview, add an alert banner: *"Spare bed or empty room in your flat? Post your vacant space to RoomiLink in 1-click."*
+    * Button links directly to `/rooms/new?purpose=flatmate_share&source=household` with pre-filled address and flat details.
+
+---
+
+### Issue #67: test(qa): Automated test suite for flatmate room shares, subscription guards, and compatibility enrichment
+* **GitHub Issue**: [#67](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/67)
+* **Goal**: Guarantee automated regression prevention for peer-to-peer room shares.
+* **Testing Scope**:
+  * In `backend/tests/test_rooms.py`:
+    * `test_create_flatmate_room_share_listing`: Verify creation with `listing_purpose = "flatmate_share"` and split metadata.
+    * `test_get_room_returns_existing_flatmate_and_compatibility`: Verify response returns `existing_flatmate` block and compatibility score.
+    * Run `pytest` to ensure 100% test pass rate.
+

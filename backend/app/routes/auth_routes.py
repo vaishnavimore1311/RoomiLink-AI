@@ -1,8 +1,14 @@
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
-from app.models.user_models import User, Profile, RoommatePreference
+from app.models.user_models import User, Profile, RoommatePreference, VerificationDocument
 from app.models.household_models import HouseholdMember
+from app.utils.verification_storage import (
+    ALLOWED_DOCUMENT_TYPES,
+    save_verification_file,
+    delete_verification_file,
+)
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -190,4 +196,93 @@ def update_ai_consent():
         "status": "success",
         "message": "AI consent setting updated.",
         "ai_consent_enabled": user.ai_consent_enabled
+    }), 200
+
+
+@auth_bp.route("/verification/upload-id", methods=["POST"])
+@jwt_required()
+def upload_verification_id():
+    """
+    Authenticated endpoint for users and property hosts to upload a photo ID
+    (Government ID, College ID, or Property proof) for identity verification.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User account not found."}), 404
+
+    # Check for file in request
+    file = request.files.get("file") or request.files.get("id_document") or request.files.get("image")
+    if not file or file.filename == "":
+        return jsonify({"status": "error", "message": "No file uploaded. Key 'file', 'id_document', or 'image' is required."}), 400
+
+    # Validate document type
+    document_type = request.form.get("document_type", "government_id").strip().lower()
+    if document_type not in ALLOWED_DOCUMENT_TYPES:
+        allowed_list = ", ".join(sorted(ALLOWED_DOCUMENT_TYPES))
+        return jsonify({
+            "status": "error",
+            "message": f"Invalid document type. Allowed types: {allowed_list}"
+        }), 400
+
+    # Save file to private storage with format and size validation
+    try:
+        file_path, original_filename, file_size = save_verification_file(file, user_id)
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+    # Replacement handling: check if a verification document already exists for this user
+    existing_doc = VerificationDocument.query.filter_by(user_id=user.id).first()
+    if existing_doc:
+        # Delete old file from disk to avoid orphaned sensitive documents
+        if existing_doc.file_path and existing_doc.file_path != file_path:
+            delete_verification_file(existing_doc.file_path)
+        existing_doc.document_type = document_type
+        existing_doc.file_path = file_path
+        existing_doc.original_filename = original_filename
+        existing_doc.file_size = file_size
+        existing_doc.status = "submitted"
+        existing_doc.uploaded_at = datetime.now(timezone.utc)
+        doc = existing_doc
+    else:
+        doc = VerificationDocument(
+            user_id=user.id,
+            document_type=document_type,
+            file_path=file_path,
+            original_filename=original_filename,
+            file_size=file_size,
+            status="submitted"
+        )
+        db.session.add(doc)
+
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": "Photo ID submitted successfully for verification.",
+        "data": doc.to_dict()
+    }), 201
+
+
+@auth_bp.route("/verification/status", methods=["GET"])
+@jwt_required()
+def get_verification_status():
+    """
+    Retrieve the current user's Photo ID verification status and metadata
+    without exposing sensitive storage paths or internal URLs.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User account not found."}), 404
+
+    doc = VerificationDocument.query.filter_by(user_id=user.id).first()
+
+    return jsonify({
+        "status": "success",
+        "data": {
+            "has_uploaded": doc is not None,
+            "is_verified": user.is_verified,
+            "document": doc.to_dict() if doc else None
+        }
     }), 200

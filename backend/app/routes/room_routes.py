@@ -6,7 +6,9 @@ from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.property_models import Property, Room, RoomInquiry, FavoriteRoom
-from app.models.user_models import User
+from app.models.user_models import User, Profile, RoommatePreference
+from app.services.matching_service import calculate_match_details
+from app.routes.matching_routes import get_or_create_default_pref
 
 
 room_bp = Blueprint("rooms", __name__)
@@ -35,6 +37,7 @@ def get_rooms():
     city = request.args.get("city", "").strip()
     room_type = request.args.get("room_type", "").strip()
     search = request.args.get("search", "").strip()
+    purpose = (request.args.get("purpose") or request.args.get("listing_purpose") or "").strip()
     
     try:
         max_rent = float(request.args.get("budget_max") or request.args.get("max_rent") or 99999)
@@ -54,6 +57,9 @@ def get_rooms():
 
     if room_type and room_type != "all":
         query = query.filter(Room.room_type.ilike(room_type))
+
+    if purpose and purpose != "all":
+        query = query.filter(Room.listing_purpose.ilike(purpose))
 
     if search:
         search_filter = f"%{search}%"
@@ -111,6 +117,12 @@ def get_rooms():
             "images": room.get_images(),
             "lister_id": prop.lister_id,
             "lister_name": lister_name,
+            "listing_purpose": room.listing_purpose or "landlord",
+            "current_occupants": room.current_occupants if room.current_occupants is not None else 1,
+            "max_occupants": room.max_occupants if room.max_occupants is not None else 2,
+            "preferred_gender": room.preferred_gender or "any",
+            "utility_split_desc": room.utility_split_desc,
+            "household_id": room.household_id,
             "created_at": prop.created_at.isoformat() if prop.created_at else None,
             "is_favorited": room.id in user_fav_room_ids
         })
@@ -186,9 +198,65 @@ def get_room_detail(room_id):
         "lister_id": prop.lister_id,
         "lister_name": lister_name,
         "lister_email": lister_email,
+        "listing_purpose": room.listing_purpose or "landlord",
+        "current_occupants": room.current_occupants if room.current_occupants is not None else 1,
+        "max_occupants": room.max_occupants if room.max_occupants is not None else 2,
+        "preferred_gender": room.preferred_gender or "any",
+        "utility_split_desc": room.utility_split_desc,
+        "household_id": room.household_id,
         "created_at": prop.created_at.isoformat() if prop.created_at else None,
-        "is_favorited": is_favorited
+        "is_favorited": is_favorited,
+        "existing_flatmate": None
     }
+
+    if (room.listing_purpose or "").lower() == "flatmate_share" and lister:
+        poster_profile = lister.profile
+        poster_pref = RoommatePreference.query.filter_by(user_id=lister.id).first()
+        if not poster_pref:
+            poster_pref = get_or_create_default_pref(lister.id)
+
+        comp_score = None
+        comp_strengths = []
+        comp_frictions = []
+        comp_breakdown = {}
+
+        if current_user:
+            if current_user.id != lister.id:
+                my_pref = RoommatePreference.query.filter_by(user_id=current_user.id).first()
+                if not my_pref:
+                    my_pref = get_or_create_default_pref(current_user.id)
+                match_res = calculate_match_details(my_pref, poster_pref)
+                comp_score = match_res.get("score")
+                comp_strengths = match_res.get("strengths", [])
+                comp_frictions = match_res.get("frictions", [])
+                comp_breakdown = match_res.get("breakdown", {})
+            else:
+                comp_score = 100
+                comp_strengths = ["This is your own shared room listing."]
+                comp_frictions = []
+                comp_breakdown = {}
+
+        room_detail["existing_flatmate"] = {
+            "id": lister.id,
+            "name": poster_profile.full_name if poster_profile and poster_profile.full_name else lister.email.split("@")[0],
+            "avatar_url": poster_profile.avatar_url if poster_profile and poster_profile.avatar_url else f"https://api.dicebear.com/7.x/avataaars/svg?seed={lister.id}",
+            "bio": poster_profile.bio if poster_profile and poster_profile.bio else "Resident flatmate looking for a compatible roommate to share space.",
+            "occupation": poster_profile.occupation if poster_profile and poster_profile.occupation else "Resident Tenant",
+            "lifestyle": {
+                "sleep_schedule": poster_pref.sleep_schedule or "flexible",
+                "cleanliness_level": poster_pref.cleanliness_level or 3,
+                "noise_tolerance": poster_pref.noise_tolerance or "moderate",
+                "smoking_status": poster_pref.smoking_status or "non_smoker",
+                "guest_frequency": poster_pref.guest_frequency or "weekends",
+                "dietary_pref": getattr(poster_pref, "dietary_pref", "any") or "any",
+                "work_routine": getattr(poster_pref, "work_routine", "hybrid") or "hybrid",
+                "pet_tolerance": getattr(poster_pref, "pet_tolerance", "friendly") or "friendly"
+            },
+            "compatibility_score": comp_score,
+            "strengths": comp_strengths,
+            "frictions": comp_frictions,
+            "breakdown": comp_breakdown
+        }
 
     return jsonify({
         "status": "success",
@@ -225,6 +293,31 @@ def create_room():
     city = data.get("city", "").strip()
     property_type = data.get("property_type", "apartment")
     room_type = data.get("room_type", "private")
+    listing_purpose = data.get("listing_purpose", "landlord").strip().lower()
+    if listing_purpose not in ["landlord", "flatmate_share"]:
+        listing_purpose = "landlord"
+
+    try:
+        current_occupants = int(data.get("current_occupants", 1))
+    except (ValueError, TypeError):
+        current_occupants = 1
+
+    try:
+        max_occupants = int(data.get("max_occupants", 2))
+    except (ValueError, TypeError):
+        max_occupants = 2
+
+    preferred_gender = data.get("preferred_gender", "any").strip().lower()
+    if preferred_gender not in ["any", "female", "male"]:
+        preferred_gender = "any"
+
+    utility_split_desc = data.get("utility_split_desc", "").strip()
+    household_id = data.get("household_id")
+    if household_id:
+        try:
+            household_id = int(household_id)
+        except (ValueError, TypeError):
+            household_id = None
 
     try:
         rent_amount = float(data.get("rent_amount", 0))
@@ -262,7 +355,13 @@ def create_room():
         rent_amount=rent_amount,
         deposit_amount=deposit_amount,
         is_available=True,
-        available_from=data.get("available_from", "Immediate")
+        available_from=data.get("available_from", "Immediate"),
+        listing_purpose=listing_purpose,
+        current_occupants=current_occupants,
+        max_occupants=max_occupants,
+        preferred_gender=preferred_gender,
+        utility_split_desc=utility_split_desc,
+        household_id=household_id
     )
 
     amenities = data.get("amenities", [])
@@ -283,7 +382,9 @@ def create_room():
             "room_id": room.id,
             "property_id": prop.id,
             "title": prop.title,
-            "rent_amount": room.rent_amount
+            "rent_amount": room.rent_amount,
+            "listing_purpose": room.listing_purpose,
+            "room": room.to_dict()
         }
     }), 201
 
