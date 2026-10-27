@@ -108,3 +108,48 @@ def test_admin_excluded_from_roommate_matches(client):
     # Verify admin is not in candidates list
     assert not any(c["full_name"] == "Admin User" for c in candidates)
     assert any(c["full_name"] == "Seeker User" for c in candidates)
+
+
+def test_roommate_with_active_room_share_enriched(client):
+    """Test that roommate candidates who listed a flatmate share have active_room_share enriched."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.subscription_models import SubscriptionPlan, UserSubscription
+
+    # 1. Register candidate who lists a room share
+    token_candidate = create_user_with_prefs(
+        client, "host_candidate@example.com", "Rohan Verma", city="Pune"
+    )
+    user = User.query.filter_by(email="host_candidate@example.com").first()
+
+    # Active subscription
+    plan = SubscriptionPlan(name="Pro", slug="pro_seeker_match", target_role="seeker", price_inr=499.0)
+    db.session.add(plan)
+    db.session.flush()
+    sub = UserSubscription(user_id=user.id, plan_id=plan.id, status="active", expires_at=datetime.now(timezone.utc) + timedelta(days=30))
+    db.session.add(sub)
+    db.session.commit()
+
+    # Post room share
+    client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token_candidate}"},
+        json={
+            "title": "Available Bed in Kalyani Nagar",
+            "address": "Kalyani Nagar, Pune",
+            "city": "Pune",
+            "listing_purpose": "flatmate_share",
+            "rent_amount": 9000.0,
+            "room_type": "shared",
+            "current_occupants": 1
+        }
+    )
+
+    # 2. Another user searches roommates
+    res = client.get("/api/v1/matching/roommates")
+    assert res.status_code == 200
+    candidates = res.get_json()["data"]
+    rohan = next((c for c in candidates if c["full_name"] == "Rohan Verma"), None)
+    assert rohan is not None
+    assert rohan["active_room_share"] is not None
+    assert rohan["active_room_share"]["title"] == "Available Bed in Kalyani Nagar"
+    assert rohan["active_room_share"]["rent_amount"] == 9000.0

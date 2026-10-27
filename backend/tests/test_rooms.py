@@ -615,4 +615,57 @@ def test_filter_rooms_by_listing_purpose(client):
         assert item["listing_purpose"] == "landlord"
 
 
+def test_create_flatmate_room_share_with_household_link(client):
+    """Test linking a flatmate replacement listing to an existing household workspace."""
+    token = register_and_get_token(client, email="hh_poster@example.com", role="seeker")
+    subscribe_user("hh_poster@example.com", plan_slug="pro_seeker")
+
+    # Create household first
+    hh_res = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Maple Leaf Apartment", "address": "Baner, Pune"}
+    )
+    assert hh_res.status_code == 201
+    household_id = hh_res.get_json()["data"]["household"]["id"]
+
+    # Create room listing linked to household
+    res = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Shared Room in Maple Leaf Flat",
+            "description": "Vacancy after roommate relocation.",
+            "address": "Baner, Pune",
+            "city": "Pune",
+            "listing_purpose": "flatmate_share",
+            "room_type": "shared",
+            "rent_amount": 7000.0,
+            "household_id": household_id
+        }
+    )
+    assert res.status_code == 201
+    room_data = res.get_json()["data"]["room"]
+    assert room_data["household_id"] == household_id
+    assert room_data["listing_purpose"] == "flatmate_share"
+
+
+def test_unsubscribed_seeker_cannot_create_flatmate_share(client):
+    """Unsubscribed seeker cannot post a flatmate share listing without subscription."""
+    token = register_and_get_token(client, email="unsub_seeker@example.com", role="seeker")
+    res = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Empty Bed in Koregaon Park",
+            "address": "Lane 5, Koregaon Park",
+            "city": "Pune",
+            "listing_purpose": "flatmate_share",
+            "rent_amount": 8000.0
+        }
+    )
+    assert res.status_code == 403
+    assert res.get_json()["code"] == "SUBSCRIPTION_REQUIRED"
+
+
 
