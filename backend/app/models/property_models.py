@@ -49,6 +49,14 @@ class Room(db.Model):
     amenities = db.Column(db.Text, default="[]")  # JSON encoded list of amenities
     images = db.Column(db.Text, default="[]")     # JSON encoded list of image URLs
 
+    # Flatmate Room-Share & Replacement Metadata
+    listing_purpose = db.Column(db.String(30), default="landlord")  # 'landlord' | 'flatmate_share'
+    current_occupants = db.Column(db.Integer, default=1)
+    max_occupants = db.Column(db.Integer, default=2)
+    preferred_gender = db.Column(db.String(20), default="any")  # 'any' | 'female' | 'male'
+    utility_split_desc = db.Column(db.String(255), nullable=True)
+    household_id = db.Column(db.Integer, db.ForeignKey("households.id"), nullable=True)
+
     def get_amenities(self):
         try:
             return json.loads(self.amenities)
@@ -78,7 +86,13 @@ class Room(db.Model):
             "is_featured": bool(self.is_featured),
             "available_from": self.available_from,
             "amenities": self.get_amenities(),
-            "images": self.get_images()
+            "images": self.get_images(),
+            "listing_purpose": self.listing_purpose or "landlord",
+            "current_occupants": self.current_occupants if self.current_occupants is not None else 1,
+            "max_occupants": self.max_occupants if self.max_occupants is not None else 2,
+            "preferred_gender": self.preferred_gender or "any",
+            "utility_split_desc": self.utility_split_desc,
+            "household_id": self.household_id
         }
 
 
