@@ -237,11 +237,16 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #66: feat(frontend): 1-click Post Vacant Space replacement launcher inside Household Hub
 * **GitHub Issue**: [#66](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/66)
+* **Status**: Completed & Merged (PR [#79](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/79))
 * **Goal**: Allow remaining flatmates in a household workspace to initiate a replacement roommate search when someone moves out.
 * **Frontend Changes**:
   * In `frontend/app/household/page.tsx`:
     * Inside the Household Overview, add an alert banner: *"Spare bed or empty room in your flat? Post your vacant space to RoomiLink in 1-click."*
     * Button links directly to `/rooms/new?purpose=flatmate_share&source=household` with pre-filled address and flat details.
+  * In `frontend/app/rooms/new/page.tsx`:
+    * Read `source=household`, `household_id`, `address`, `city`, and `title` query params to prefill room state.
+    * Display informational pre-fill alert banner confirming source from Household Hub.
+    * Pass `household_id` in room creation payload.
 
 ---
 
