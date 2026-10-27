@@ -22,6 +22,36 @@ export interface RoomListing {
   created_at?: string;
   is_favorited?: boolean;
   favorited_at?: string;
+
+  // Flatmate Space-Share Metadata
+  listing_purpose?: "landlord" | "flatmate_share";
+  current_occupants?: number;
+  max_occupants?: number;
+  preferred_gender?: "any" | "female" | "male" | string;
+  utility_split_desc?: string;
+  household_id?: number | null;
+  existing_flatmate?: {
+    id: number;
+    name: string;
+    email?: string;
+    bio?: string;
+    occupation?: string;
+    city?: string;
+    avatar_url?: string;
+    is_verified?: boolean;
+    sleep_schedule?: string;
+    cleanliness?: string;
+    noise_tolerance?: string;
+    guest_frequency?: string;
+    dietary_preference?: string;
+    smoking?: boolean;
+    drinking?: boolean;
+    pets?: boolean;
+    compatibility_score?: number | null;
+    match_confidence?: string;
+    strengths?: string[];
+    frictions?: string[];
+  };
 }
 
 export interface FavoriteToggleResponse {
