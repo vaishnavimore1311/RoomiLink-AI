@@ -23,6 +23,8 @@ export default function NewRoomPage() {
   const [maxOccupants, setMaxOccupants] = useState<number>(2);
   const [preferredGender, setPreferredGender] = useState<string>("any");
   const [utilitySplitDesc, setUtilitySplitDesc] = useState<string>("");
+  const [householdId, setHouseholdId] = useState<number | null>(null);
+  const [isFromHousehold, setIsFromHousehold] = useState(false);
   const [rentAmount, setRentAmount] = useState<number>(750);
   const [depositAmount, setDepositAmount] = useState<number>(500);
   const [availableFrom, setAvailableFrom] = useState("Immediate");
@@ -43,12 +45,28 @@ export default function NewRoomPage() {
     if (!authLoading && !isAuthenticated) {
       router.push("/login");
     }
-    // Check if query params specify flatmate_share mode
+    // Check if query params specify flatmate_share mode or household pre-fills
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("purpose") === "flatmate_share" || params.get("mode") === "share") {
         setListingPurpose("flatmate_share");
         setRoomType("shared");
+      }
+      if (params.get("source") === "household") {
+        setIsFromHousehold(true);
+      }
+      if (params.get("title")) {
+        setTitle(params.get("title") || "");
+      }
+      if (params.get("address")) {
+        setAddress(params.get("address") || "");
+      }
+      if (params.get("city")) {
+        setCity(params.get("city") || "");
+      }
+      if (params.get("household_id")) {
+        const hhId = parseInt(params.get("household_id") || "0");
+        if (hhId > 0) setHouseholdId(hhId);
       }
     }
   }, [authLoading, isAuthenticated, router]);
@@ -83,6 +101,7 @@ export default function NewRoomPage() {
         max_occupants: Number(maxOccupants),
         preferred_gender: preferredGender,
         utility_split_desc: utilitySplitDesc.trim(),
+        household_id: householdId,
         rent_amount: Number(rentAmount),
         deposit_amount: Number(depositAmount),
         available_from: availableFrom.trim() || "Immediate",
@@ -174,6 +193,20 @@ export default function NewRoomPage() {
         {errorMessage && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium">
             {errorMessage}
+          </div>
+        )}
+
+        {isFromHousehold && (
+          <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 flex items-start gap-3 shadow-sm">
+            <span className="text-xl">🏠</span>
+            <div>
+              <p className="text-xs font-bold text-purple-900">
+                Pre-filled from your Household Hub
+              </p>
+              <p className="text-xs text-purple-700 mt-0.5">
+                We pre-filled your flat address and space-share settings from your household. Review details, adjust rent split, and post!
+              </p>
+            </div>
           </div>
         )}
 

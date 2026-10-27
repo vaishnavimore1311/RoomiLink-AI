@@ -695,6 +695,37 @@ function HouseholdContent() {
           </div>
         </div>
 
+        {/* 1-Click Post Vacant Space Replacement Launcher Banner */}
+        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 rounded-2xl p-5 text-white shadow-md border border-purple-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-200 border border-purple-400/30 flex items-center justify-center text-xl shrink-0">
+              🤝
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-white">
+                  Spare Bed or Empty Room in Your Flat?
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/30 text-purple-200 border border-purple-400/30 uppercase tracking-wider">
+                  Flatmate Replacement
+                </span>
+              </div>
+              <p className="text-xs text-purple-200/90 mt-0.5 leading-relaxed">
+                Post your vacant space to RoomiLink in 1-click. Split domestic rent &amp; bills with a verified, AI-compatible flatmate.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href={`/rooms/new?purpose=flatmate_share&source=household&household_id=${household.id}&address=${encodeURIComponent(
+              household.address || ""
+            )}&title=${encodeURIComponent(`Shared Bed in ${household.name}`)}`}
+            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-950/40 transition-all active:scale-95 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>📢 Post Vacant Space &rarr;</span>
+          </Link>
+        </div>
+
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 space-x-6 text-sm font-semibold">
           {[
