@@ -412,7 +412,7 @@ function AgreementContent() {
                     required
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 

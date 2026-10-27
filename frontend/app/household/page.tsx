@@ -541,7 +541,7 @@ function HouseholdContent() {
                     value={createName}
                     onChange={(e) => setCreateName(e.target.value)}
                     placeholder="e.g. Maple Street Commons"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -555,7 +555,7 @@ function HouseholdContent() {
                     value={createAddress}
                     onChange={(e) => setCreateAddress(e.target.value)}
                     placeholder="e.g. Flat 402, Blue Ridge, Phase 1, Hinjewadi, Pune"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -619,7 +619,7 @@ function HouseholdContent() {
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     placeholder="e.g. A8F2C41D"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-center tracking-widest text-sm uppercase focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-center tracking-widest text-sm uppercase text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -1262,7 +1262,7 @@ function HouseholdContent() {
                     value={expTitle}
                     onChange={(e) => setExpTitle(e.target.value)}
                     placeholder="e.g. WiFi Bill, Cook / Maid Salary, Groceries"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
                 <div>
@@ -1277,7 +1277,7 @@ function HouseholdContent() {
                     value={expAmount}
                     onChange={(e) => setExpAmount(e.target.value)}
                     placeholder="e.g. 1500"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
                 <div>
@@ -1285,7 +1285,7 @@ function HouseholdContent() {
                   <select
                     value={expCategory}
                     onChange={(e) => setExpCategory(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   >
                     <option value="Groceries">Groceries</option>
                     <option value="Utilities">Utilities & WiFi</option>
@@ -1342,7 +1342,7 @@ function HouseholdContent() {
                     value={choreTitle}
                     onChange={(e) => setChoreTitle(e.target.value)}
                     placeholder="e.g. Empty dishwasher, Take out recycling"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1351,7 +1351,7 @@ function HouseholdContent() {
                     <select
                       value={choreFrequency}
                       onChange={(e) => setChoreFrequency(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     >
                       <option value="daily">Daily</option>
                       <option value="weekly">Weekly</option>
@@ -1365,7 +1365,7 @@ function HouseholdContent() {
                       value={choreDueDate}
                       onChange={(e) => setChoreDueDate(e.target.value)}
                       placeholder="e.g. Sunday"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -1376,7 +1376,7 @@ function HouseholdContent() {
                   <select
                     value={choreAssignee}
                     onChange={(e) => setChoreAssignee(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   >
                     <option value="">Rotating / Anyone</option>
                     {members.map((m) => (
@@ -1445,7 +1445,7 @@ function HouseholdContent() {
                     value={actTitle}
                     onChange={(e) => setActTitle(e.target.value)}
                     placeholder="e.g. Birthday Party, Movie Outing, Shared Furniture"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -1456,7 +1456,7 @@ function HouseholdContent() {
                     <select
                       value={actCategory}
                       onChange={(e) => setActCategory(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     >
                       <option value="Party / Outing">🎉 Party / Outing</option>
                       <option value="Food & Dining">🍕 Food & Dining</option>
@@ -1473,7 +1473,7 @@ function HouseholdContent() {
                       type="date"
                       value={actDate}
                       onChange={(e) => setActDate(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     />
                   </div>
                 </div>
@@ -1492,7 +1492,7 @@ function HouseholdContent() {
                       value={actAmount}
                       onChange={(e) => setActAmount(e.target.value)}
                       placeholder="e.g. 3000"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-bold"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     />
                   </div>
                   <div>
@@ -1502,7 +1502,7 @@ function HouseholdContent() {
                     <select
                       value={actPayerId}
                       onChange={(e) => setActPayerId(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                     >
                       {members.map((m) => (
                         <option key={m.user_id} value={m.user_id}>
@@ -1608,8 +1608,8 @@ function HouseholdContent() {
                       </span>
                     </p>
                     {actParticipants.length > 0 && parseFloat(actAmount) > 0 ? (
-                      <div className="space-y-1">
-                        <p className="text-[11px] text-indigo-800">
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] text-indigo-900 font-medium">
                           Total ₹{parseFloat(actAmount).toFixed(2)} divided among {actParticipants.length} selected roommate{actParticipants.length === 1 ? "" : "s"}:
                         </p>
                         <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1620,12 +1620,16 @@ function HouseholdContent() {
                             const rem = totalCents % actParticipants.length;
                             const share = (baseCents + (idx < rem ? 1 : 0)) / 100;
                             return (
-                              <span key={uid} className="px-2 py-0.5 bg-white rounded-md border border-indigo-200 font-semibold text-[11px]">
+                              <span key={uid} className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 font-bold text-xs text-slate-900 shadow-2xs">
                                 {member?.user_name || `User ${uid}`}: ₹{share.toFixed(2)}
                               </span>
                             );
                           })}
                         </div>
+                        <p className="text-[10px] text-emerald-700 font-semibold pt-0.5 flex items-center gap-1">
+                          <span>✓</span>
+                          <span>Sum equals ₹{parseFloat(actAmount).toFixed(2)} exactly{Math.round(parseFloat(actAmount) * 100) % actParticipants.length > 0 ? " (includes 1-paise rounding balance)" : ""}</span>
+                        </p>
                       </div>
                     ) : (
                       <p className="text-[11px] text-indigo-600">
@@ -1675,7 +1679,7 @@ function HouseholdContent() {
                                 placeholder="0.00"
                                 value={actCustomShares[uid] || ""}
                                 onChange={(e) => handleCustomShareChange(uid, e.target.value)}
-                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-right font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                                className="w-full p-2 bg-white border border-slate-300 rounded-lg text-right font-bold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                               />
                             </div>
                           </div>
@@ -1695,7 +1699,7 @@ function HouseholdContent() {
                     value={actNotes}
                     onChange={(e) => setActNotes(e.target.value)}
                     placeholder="Add details, receipt reference, or outing highlights..."
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden text-xs"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden text-xs"
                   />
                 </div>
 

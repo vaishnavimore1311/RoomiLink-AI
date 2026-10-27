@@ -1109,5 +1109,81 @@ def test_scenario_13_duplicate_and_invalid_data_rejected(client):
     assert res_3.status_code == 400
 
 
+def test_scenario_14_cors_preflight_and_five_thousand_split_precision(client):
+    """Scenario 14: OPTIONS preflight returns 200 with CORS headers, and ₹5,000 split across 3 roommates sums exactly."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # 1. Test CORS preflight OPTIONS request
+    res_preflight = client.open(
+        f"/api/v1/household/{hh_id}/activities",
+        method="OPTIONS",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type,Authorization"
+        }
+    )
+    assert res_preflight.status_code == 200
+    assert res_preflight.headers.get("Access-Control-Allow-Origin") in ["*", "http://localhost:3000"]
+    assert "POST" in res_preflight.headers.get("Access-Control-Allow-Methods", "")
+
+    # 2. Test exact ₹5,000 split among 3 participants (Sneha pays, Sneha, Aditya, Rahul participate, Priya excluded)
+    res = client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Weekend Flat Party",
+            "category": "Party / Outing",
+            "total_amount": 5000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["aditya"].id, users["rahul"].id],
+            "split_method": "equal"
+        }
+    )
+    assert res.status_code == 201
+    act_data = res.get_json()["data"]
+    assert act_data["total_amount"] == 5000.0
+    assert len(act_data["participants"]) == 3
+
+    # Check participant shares sum exactly to 5000.00
+    shares = {p["user_id"]: p["share_amount"] for p in act_data["participants"]}
+    assert shares[users["sneha"].id] == 1666.67
+    assert shares[users["aditya"].id] == 1666.67
+    assert shares[users["rahul"].id] == 1666.66
+    assert round(shares[users["sneha"].id] + shares[users["aditya"].id] + shares[users["rahul"].id], 2) == 5000.00
+
+    # 3. Check Priya owes ₹0
+    res_priya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['priya']}"}
+    )
+    assert res_priya.get_json()["data"]["total_i_owe"] == 0.0
+
+    # 4. Check Aditya owes ₹1,666.67
+    res_aditya = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"}
+    )
+    assert res_aditya.get_json()["data"]["total_i_owe"] == 1666.67
+
+    # 5. Check Rahul owes ₹1,666.66
+    res_rahul = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"}
+    )
+    assert res_rahul.get_json()["data"]["total_i_owe"] == 1666.66
+
+    # 6. Check Sneha is owed ₹3,333.33 (1666.67 + 1666.66)
+    res_sneha = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_sneha.get_json()["data"]["total_owed_to_me"] == 3333.33
+
+
+
 
 
