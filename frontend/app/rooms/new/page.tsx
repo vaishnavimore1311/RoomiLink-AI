@@ -18,6 +18,11 @@ export default function NewRoomPage() {
   const [neighborhood, setNeighborhood] = useState("");
   const [propertyType, setPropertyType] = useState("apartment");
   const [roomType, setRoomType] = useState("private");
+  const [listingPurpose, setListingPurpose] = useState<"landlord" | "flatmate_share">("landlord");
+  const [currentOccupants, setCurrentOccupants] = useState<number>(1);
+  const [maxOccupants, setMaxOccupants] = useState<number>(2);
+  const [preferredGender, setPreferredGender] = useState<string>("any");
+  const [utilitySplitDesc, setUtilitySplitDesc] = useState<string>("");
   const [rentAmount, setRentAmount] = useState<number>(750);
   const [depositAmount, setDepositAmount] = useState<number>(500);
   const [availableFrom, setAvailableFrom] = useState("Immediate");
@@ -37,6 +42,14 @@ export default function NewRoomPage() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/login");
+    }
+    // Check if query params specify flatmate_share mode
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("purpose") === "flatmate_share" || params.get("mode") === "share") {
+        setListingPurpose("flatmate_share");
+        setRoomType("shared");
+      }
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -65,6 +78,11 @@ export default function NewRoomPage() {
         neighborhood: neighborhood.trim(),
         property_type: propertyType,
         room_type: roomType,
+        listing_purpose: listingPurpose,
+        current_occupants: Number(currentOccupants),
+        max_occupants: Number(maxOccupants),
+        preferred_gender: preferredGender,
+        utility_split_desc: utilitySplitDesc.trim(),
         rent_amount: Number(rentAmount),
         deposit_amount: Number(depositAmount),
         available_from: availableFrom.trim() || "Immediate",
@@ -160,6 +178,80 @@ export default function NewRoomPage() {
         )}
 
         <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+          {/* Dual-Mode Selector: Landlord vs Existing Tenant Space Share */}
+          <div className="space-y-3 pb-6 border-b border-slate-100">
+            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Select Listing Type
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setListingPurpose("landlord")}
+                className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
+                  listingPurpose === "landlord"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-md ring-2 ring-slate-900/10"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <span className="text-2xl mt-0.5">🏢</span>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <p className={`text-sm font-bold ${listingPurpose === "landlord" ? "text-white" : "text-slate-900"}`}>
+                      Landlord / Property Owner
+                    </p>
+                  </div>
+                  <p className={`text-xs mt-1 leading-snug ${listingPurpose === "landlord" ? "text-slate-300" : "text-slate-500"}`}>
+                    Renting out an entire private room, studio, or full property.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setListingPurpose("flatmate_share");
+                  setRoomType("shared");
+                }}
+                className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
+                  listingPurpose === "flatmate_share"
+                    ? "border-indigo-600 bg-indigo-600 text-white shadow-md ring-2 ring-indigo-600/20"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <span className="text-2xl mt-0.5">🤝</span>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <p className={`text-sm font-bold ${listingPurpose === "flatmate_share" ? "text-white" : "text-slate-900"}`}>
+                      I Live Here &amp; Need a Roommate
+                    </p>
+                    <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
+                      listingPurpose === "flatmate_share"
+                        ? "bg-white/20 text-white"
+                        : "bg-indigo-100 text-indigo-700"
+                    }`}>
+                      Share Rent
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-1 leading-snug ${listingPurpose === "flatmate_share" ? "text-indigo-100" : "text-slate-500"}`}>
+                    Have an empty bed/space in your room to split rent and domestic bills.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {listingPurpose === "flatmate_share" && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-start space-x-3 mt-3">
+                <span className="text-lg">✨</span>
+                <div className="text-xs text-indigo-950 leading-relaxed">
+                  <p className="font-bold text-indigo-900">Peer-to-Peer Flatmate Sharing Active</p>
+                  <p className="text-indigo-700 mt-0.5">
+                    Your verified lifestyle profile will be automatically linked to this room listing. Prospective roommates will see your sleep routine, cleanliness habits, and live AI compatibility score before applying!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Section 1: Basic Property Info */}
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100">
@@ -234,8 +326,77 @@ export default function NewRoomPage() {
           {/* Section 2: Room Specifics & Pricing */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100">
-              2. Room Specifics & Pricing (₹ INR)
+              {listingPurpose === "flatmate_share" ? "2. Roommate Sharing & Rent Split (₹ INR)" : "2. Room Specifics & Pricing (₹ INR)"}
             </h2>
+
+            {/* Flatmate Room-Share Specific Fields */}
+            {listingPurpose === "flatmate_share" && (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Current Occupants Living Here
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={currentOccupants}
+                      onChange={(e) => setCurrentOccupants(Math.max(1, Number(e.target.value)))}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">E.g., 1 (you currently living in the room)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Total Room Capacity (Beds)
+                    </label>
+                    <input
+                      type="number"
+                      min="2"
+                      max="10"
+                      value={maxOccupants}
+                      onChange={(e) => setMaxOccupants(Math.max(2, Number(e.target.value)))}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Total beds (e.g., 2 for twin-sharing)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Preferred Flatmate Gender
+                    </label>
+                    <select
+                      value={preferredGender}
+                      onChange={(e) => setPreferredGender(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
+                    >
+                      <option value="any">Any Gender</option>
+                      <option value="female">Female Only</option>
+                      <option value="male">Male Only</option>
+                    </select>
+                    <p className="text-[11px] text-slate-500 mt-1">Gender preference for the shared room</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Utility &amp; Bill Split Details (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={utilitySplitDesc}
+                    onChange={(e) => setUtilitySplitDesc(e.target.value)}
+                    placeholder="e.g., Rent ₹8,000 + Wi-Fi, electricity & maid split equally 50/50"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white placeholder:text-slate-400"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Explain how ongoing household expenses (Wi-Fi, cleaning, utilities) will be divided.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
@@ -245,23 +406,28 @@ export default function NewRoomPage() {
                   onChange={(e) => setRoomType(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
                 >
-                  <option value="private">Private Room</option>
                   <option value="shared">Twin Sharing</option>
+                  <option value="private">Private Room</option>
                   <option value="master">Master Bedroom (Ensuite)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Rent (₹ INR)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {listingPurpose === "flatmate_share" ? "Your Share of Rent (₹ INR)" : "Monthly Rent (₹ INR)"}
+                </label>
                 <input
                   type="number"
-                  min="1000"
+                  min="500"
                   required
                   value={rentAmount}
                   onChange={(e) => setRentAmount(Number(e.target.value))}
                   placeholder="8500"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none font-semibold text-emerald-700"
                 />
+                {listingPurpose === "flatmate_share" && (
+                  <p className="text-[10px] text-slate-500 mt-1">The 50% split the new roommate will pay.</p>
+                )}
               </div>
 
               <div>
@@ -350,9 +516,17 @@ export default function NewRoomPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+              className={`px-6 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 ${
+                listingPurpose === "flatmate_share"
+                  ? "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100"
+                  : "bg-slate-900 hover:bg-slate-800 shadow-slate-100"
+              }`}
             >
-              {isSubmitting ? "Publishing Listing..." : "Publish Room Listing"}
+              {isSubmitting
+                ? "Publishing Listing..."
+                : listingPurpose === "flatmate_share"
+                ? "Publish Flatmate Room Share"
+                : "Publish Property Listing"}
             </button>
           </div>
         </form>
