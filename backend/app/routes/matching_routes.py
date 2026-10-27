@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user_models import User, Profile, RoommatePreference
+from app.models.property_models import Property, Room
 from app.services.matching_service import calculate_match_details
 
 matching_bp = Blueprint("matching", __name__)
@@ -87,6 +88,22 @@ def get_roommate_matches():
         if score < min_score:
             continue
 
+        active_share = (
+            Room.query.join(Property, Room.property_id == Property.id)
+            .filter(Property.lister_id == user.id, Room.is_available == True, Room.listing_purpose == "flatmate_share")
+            .first()
+        )
+        active_room_share_data = None
+        if active_share:
+            active_room_share_data = {
+                "room_id": active_share.id,
+                "title": active_share.property.title,
+                "city": active_share.property.city,
+                "neighborhood": active_share.property.neighborhood,
+                "rent_amount": active_share.rent_amount,
+                "preferred_gender": active_share.preferred_gender,
+            }
+
         candidates.append({
             "user_id": user.id,
             "full_name": profile.full_name,
@@ -100,7 +117,8 @@ def get_roommate_matches():
             "compatibility_score": score,
             "strengths": match_info["strengths"][:2],
             "frictions": match_info["frictions"][:1],
-            "lifestyle": target_pref.to_dict()
+            "lifestyle": target_pref.to_dict(),
+            "active_room_share": active_room_share_data
         })
 
     # Sort candidates by compatibility score descending

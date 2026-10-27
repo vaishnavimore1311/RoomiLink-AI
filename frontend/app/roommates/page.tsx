@@ -20,6 +20,7 @@ function RoommatesContent() {
   const [minScore, setMinScore] = useState<number>(50);
   const [maxBudget, setMaxBudget] = useState<number>(25000);
   const [selectedRoutine, setSelectedRoutine] = useState<string>("all");
+  const [hasRoomOnly, setHasRoomOnly] = useState(false);
 
   // Selected candidate for breakdown modal
   const [activeModalCandidate, setActiveModalCandidate] = useState<RoommateCandidate | null>(null);
@@ -55,9 +56,11 @@ function RoommatesContent() {
     fetchCandidates();
   }, [fetchCandidates]);
 
-  const filteredCandidates = selectedRoutine !== "all"
-    ? candidates.filter((c) => c.lifestyle?.work_routine === selectedRoutine)
-    : candidates;
+  const filteredCandidates = candidates.filter((c) => {
+    if (selectedRoutine !== "all" && c.lifestyle?.work_routine !== selectedRoutine) return false;
+    if (hasRoomOnly && !c.active_room_share) return false;
+    return true;
+  });
 
   const resetFilters = () => {
     setSearch("");
@@ -65,6 +68,7 @@ function RoommatesContent() {
     setMinScore(50);
     setMaxBudget(25000);
     setSelectedRoutine("all");
+    setHasRoomOnly(false);
   };
 
   return (
@@ -191,6 +195,27 @@ function RoommatesContent() {
                   {pill.label}
                 </button>
               ))}
+
+              {/* Has Available Room Toggle Pill */}
+              <button
+                type="button"
+                onClick={() => setHasRoomOnly(!hasRoomOnly)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer shadow-xs ml-1 ${
+                  hasRoomOnly
+                    ? "bg-purple-700 text-white ring-2 ring-purple-300"
+                    : "bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100"
+                }`}
+              >
+                <span>🏠</span>
+                <span>Has Available Room</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                    hasRoomOnly ? "bg-white text-purple-900" : "bg-purple-200 text-purple-800"
+                  }`}
+                >
+                  {candidates.filter((c) => Boolean(c.active_room_share)).length}
+                </span>
+              </button>
             </div>
 
             <button
@@ -311,6 +336,31 @@ function RoommatesContent() {
                           </p>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Space-Share Room Card Launcher */}
+                  {c.active_room_share && (
+                    <div className="pt-2">
+                      <Link
+                        href={`/rooms/${c.active_room_share.room_id}`}
+                        className="block p-3 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50/50 to-purple-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 text-purple-950 transition-all group/share shadow-xs"
+                      >
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-1.5 text-purple-800">
+                            <span>🏠</span> Has an available bed in {c.active_room_share.neighborhood ? `${c.active_room_share.neighborhood}, ` : ""}{c.active_room_share.city}
+                          </span>
+                          <span className="text-purple-700 font-extrabold group-hover/share:translate-x-0.5 transition-transform">
+                            View Room &rarr;
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5 text-[11px] text-purple-700">
+                          <span className="truncate max-w-[190px] font-medium">{c.active_room_share.title}</span>
+                          <span className="font-extrabold text-purple-900 bg-white/80 px-2 py-0.5 rounded-md border border-purple-100">
+                            ₹{c.active_room_share.rent_amount?.toLocaleString("en-IN")}/mo
+                          </span>
+                        </div>
+                      </Link>
                     </div>
                   )}
                 </div>

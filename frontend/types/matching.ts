@@ -23,6 +23,14 @@ export interface RoommateCandidate {
     budget_min: number;
     budget_max: number;
   };
+  active_room_share?: {
+    room_id: number;
+    title: string;
+    city: string;
+    neighborhood?: string;
+    rent_amount: number;
+    preferred_gender?: string;
+  } | null;
 }
 
 export interface MatchBreakdownData {
