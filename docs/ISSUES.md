@@ -210,6 +210,7 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #64: feat(frontend): Meet Your Future Roommate profile & live AI compatibility widget on /rooms/[id]
 * **GitHub Issue**: [#64](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/64)
+* **Status**: Completed & Merged (PR [#74](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/74))
 * **Goal**: Enable seekers viewing a shared room to see the existing occupant's profile and check compatibility before applying.
 * **Frontend Changes**:
   * In `frontend/app/rooms/[id]/page.tsx`:
