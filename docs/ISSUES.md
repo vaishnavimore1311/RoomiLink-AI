@@ -167,6 +167,7 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #61: feat(backend): Extend Room model with flatmate sharing & replacement metadata
 * **GitHub Issue**: [#61](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/61)
+* **Status**: Completed & Merged (PR [#69](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/69))
 * **Goal**: Support metadata differentiating landlord rentals from peer-to-peer flatmate room-shares and replacement searches.
 * **Backend Changes**:
   * In `backend/app/models/property_models.py`:
@@ -183,6 +184,7 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #62: feat(backend): Room creation & detail endpoints with flatmate compatibility bridge
 * **GitHub Issue**: [#62](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/62)
+* **Status**: Completed & Merged (PR [#70](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/70))
 * **Goal**: Allow Seekers with active subscriptions to list a flatmate room-share, and enrich room detail responses with existing flatmate lifestyle profile and live compatibility score.
 * **Backend Changes**:
   * In `backend/app/routes/room_routes.py`:
@@ -194,6 +196,7 @@ This document tracks all active issues created for the latest feature requiremen
 
 ### Issue #63: feat(frontend): Dual-Mode listing form (Landlord vs Tenant Room-Share) on /rooms/new
 * **GitHub Issue**: [#63](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/63)
+* **Status**: Completed & Merged (PR [#73](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/73))
 * **Goal**: Allow users to toggle between posting as a commercial landlord vs an existing tenant sharing space to split rent.
 * **Frontend Changes**:
   * In `frontend/app/rooms/new/page.tsx`:
