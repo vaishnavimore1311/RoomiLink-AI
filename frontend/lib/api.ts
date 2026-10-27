@@ -113,8 +113,12 @@ export async function apiRequest<T = any>(
     return { data, status: response.status };
   } catch (err: any) {
     console.error(`[RoomiLink API Error] Fetch failed for ${url}:`, err);
+    let errorMessage = err?.message;
+    if (errorMessage === "Failed to fetch" || err?.name === "TypeError") {
+      errorMessage = `Unable to connect to the backend server (${url}). Please ensure the RoomiLink AI backend is running on ${baseUrl}.`;
+    }
     return {
-      error: err?.message || `Network connection error fetching from ${url}. Ensure the backend is reachable.`,
+      error: errorMessage || `Network connection error fetching from ${url}. Ensure the backend is reachable.`,
       status: 503,
     };
   }
