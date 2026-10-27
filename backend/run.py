@@ -29,6 +29,17 @@ def sync_schema():
                         except Exception as ex:
                             db.session.rollback()
                             print(f"[SCHEMA WARNING] Could not add '{col_name}': {ex}")
+
+            if "expenses" in inspector.get_table_names():
+                exp_columns = [col["name"] for col in inspector.get_columns("expenses")]
+                if "activity_id" not in exp_columns:
+                    try:
+                        db.session.execute(text("ALTER TABLE expenses ADD COLUMN activity_id INT NULL"))
+                        db.session.commit()
+                        print("[SCHEMA] Added missing column 'activity_id' to expenses table.")
+                    except Exception as ex:
+                        db.session.rollback()
+                        print(f"[SCHEMA WARNING] Could not add 'activity_id' to expenses: {ex}")
         except Exception as e:
             print(f"[SCHEMA WARNING] Schema check: {e}")
 
@@ -37,5 +48,6 @@ sync_schema()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"RoomiLink AI Backend running at http://127.0.0.1:{port}")
-    app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True))
+    use_reloader = os.getenv("FLASK_USE_RELOADER", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True), use_reloader=use_reloader)
 

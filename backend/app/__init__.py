@@ -37,13 +37,22 @@ def create_app(config_name=None):
 
     @app.after_request
     def add_cors_headers(response):
-        origin = request.headers.get("Origin")
-        if origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+        origin = request.headers.get("Origin") or "*"
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
         return response
+
+    @app.errorhandler(500)
+    def handle_internal_server_error(e):
+        app.logger.error(f"Internal server error: {e}")
+        origin = request.headers.get("Origin") or "*"
+        res = jsonify({"message": "Internal server error occurred.", "error": str(e)})
+        res.status_code = 500
+        res.headers["Access-Control-Allow-Origin"] = origin
+        res.headers["Access-Control-Allow-Credentials"] = "true"
+        return res
     
     # Dual-mode database verification with graceful SQLite fallback
     db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
