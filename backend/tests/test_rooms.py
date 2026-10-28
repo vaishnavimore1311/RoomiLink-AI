@@ -668,4 +668,54 @@ def test_unsubscribed_seeker_cannot_create_flatmate_share(client):
     assert res.get_json()["code"] == "SUBSCRIPTION_REQUIRED"
 
 
+def test_create_room_total_rent_and_split_calculation(client):
+    """Verifies actual total room rent input and automated per-roommate equal split calculation (Issue #86)."""
+    token = register_and_get_token(client, email="split_host@example.com", role="seeker")
+    subscribe_user("split_host@example.com", plan_slug="pro_seeker")
+
+    res = client.post(
+        "/api/v1/rooms",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Twin Sharing Room in Viman Nagar",
+            "description": "Spacious master bedroom with attached bath.",
+            "address": "Symbiosis Road, Viman Nagar",
+            "city": "Pune",
+            "neighborhood": "Viman Nagar",
+            "property_type": "apartment",
+            "room_type": "shared",
+            "listing_purpose": "flatmate_share",
+            "current_occupants": 1,
+            "max_occupants": 2,
+            "total_room_rent": 16000.0,
+            "rent_amount": 8000.0,
+            "deposit_amount": 16000.0
+        }
+    )
+    assert res.status_code == 201
+    room = res.get_json()["data"]["room"]
+    assert room["total_room_rent"] == 16000.0
+    assert room["split_rent"] == 8000.0
+    assert room["rent_amount"] == 8000.0
+
+    room_id = room["id"]
+
+    # Verify detail endpoint returns total_room_rent and split_rent
+    detail_res = client.get(f"/api/v1/rooms/{room_id}")
+    assert detail_res.status_code == 200
+    detail_data = detail_res.get_json()["data"]
+    assert detail_data["total_room_rent"] == 16000.0
+    assert detail_data["split_rent"] == 8000.0
+
+    # Verify listing list returns total_room_rent and split_rent
+    list_res = client.get("/api/v1/rooms")
+    assert list_res.status_code == 200
+    list_rooms = list_res.get_json()["data"]
+    matched = next((r for r in list_rooms if r["id"] == room_id), None)
+    assert matched is not None
+    assert matched["total_room_rent"] == 16000.0
+    assert matched["split_rent"] == 8000.0
+
+
+
 

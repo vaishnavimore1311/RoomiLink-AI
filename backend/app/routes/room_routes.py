@@ -109,6 +109,8 @@ def get_rooms():
             "property_type": prop.property_type,
             "room_type": room.room_type,
             "rent_amount": room.rent_amount,
+            "split_rent": room.rent_amount,
+            "total_room_rent": room.total_room_rent if room.total_room_rent is not None else (round(room.rent_amount * (room.max_occupants or 2), 2) if (room.listing_purpose or "").lower() == "flatmate_share" else room.rent_amount),
             "deposit_amount": room.deposit_amount,
             "available_from": room.available_from,
             "is_available": room.is_available,
@@ -189,6 +191,8 @@ def get_room_detail(room_id):
         "property_type": prop.property_type,
         "room_type": room.room_type,
         "rent_amount": room.rent_amount,
+        "split_rent": room.rent_amount,
+        "total_room_rent": room.total_room_rent if room.total_room_rent is not None else (round(room.rent_amount * (room.max_occupants or 2), 2) if (room.listing_purpose or "").lower() == "flatmate_share" else room.rent_amount),
         "deposit_amount": room.deposit_amount,
         "available_from": room.available_from,
         "is_available": room.is_available,
@@ -335,6 +339,17 @@ def create_room():
             "message": "Title, address, city, and a valid rent amount are required."
         }), 400
 
+    try:
+        total_room_rent = float(data.get("total_room_rent", 0)) if data.get("total_room_rent") is not None else None
+    except (ValueError, TypeError):
+        total_room_rent = None
+
+    if total_room_rent is None or total_room_rent <= 0:
+        if listing_purpose == "flatmate_share":
+            total_room_rent = round(rent_amount * max_occupants, 2)
+        else:
+            total_room_rent = rent_amount
+
     # Create Property
     prop = Property(
         lister_id=user_id,
@@ -353,6 +368,7 @@ def create_room():
         property_id=prop.id,
         room_type=room_type,
         rent_amount=rent_amount,
+        total_room_rent=total_room_rent,
         deposit_amount=deposit_amount,
         is_available=True,
         available_from=data.get("available_from", "Immediate"),

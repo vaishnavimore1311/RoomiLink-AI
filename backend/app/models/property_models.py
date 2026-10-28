@@ -56,6 +56,7 @@ class Room(db.Model):
     preferred_gender = db.Column(db.String(20), default="any")  # 'any' | 'female' | 'male'
     utility_split_desc = db.Column(db.String(255), nullable=True)
     household_id = db.Column(db.Integer, db.ForeignKey("households.id"), nullable=True)
+    total_room_rent = db.Column(db.Float, nullable=True)
 
     def get_amenities(self):
         try:
@@ -76,11 +77,20 @@ class Room(db.Model):
         self.images = json.dumps(images_list)
 
     def to_dict(self):
+        total_rent = self.total_room_rent
+        if total_rent is None:
+            if (self.listing_purpose or "").lower() == "flatmate_share":
+                total_rent = round(self.rent_amount * (self.max_occupants or 2), 2)
+            else:
+                total_rent = self.rent_amount
+
         return {
             "id": self.id,
             "property_id": self.property_id,
             "room_type": self.room_type,
             "rent_amount": self.rent_amount,
+            "split_rent": self.rent_amount,
+            "total_room_rent": total_rent,
             "deposit_amount": self.deposit_amount,
             "is_available": self.is_available,
             "is_featured": bool(self.is_featured),

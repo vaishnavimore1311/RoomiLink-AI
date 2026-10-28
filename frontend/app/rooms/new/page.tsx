@@ -25,8 +25,9 @@ export default function NewRoomPage() {
   const [utilitySplitDesc, setUtilitySplitDesc] = useState<string>("");
   const [householdId, setHouseholdId] = useState<number | null>(null);
   const [isFromHousehold, setIsFromHousehold] = useState(false);
-  const [rentAmount, setRentAmount] = useState<number>(750);
-  const [depositAmount, setDepositAmount] = useState<number>(500);
+  const [totalRoomRent, setTotalRoomRent] = useState<number>(16000);
+  const [rentAmount, setRentAmount] = useState<number>(8000);
+  const [depositAmount, setDepositAmount] = useState<number>(15000);
   const [availableFrom, setAvailableFrom] = useState("Immediate");
   const [images, setImages] = useState<string[]>([
     "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
@@ -103,6 +104,7 @@ export default function NewRoomPage() {
         utility_split_desc: utilitySplitDesc.trim(),
         household_id: householdId,
         rent_amount: Number(rentAmount),
+        total_room_rent: Number(listingPurpose === "flatmate_share" ? totalRoomRent : rentAmount),
         deposit_amount: Number(depositAmount),
         available_from: availableFrom.trim() || "Immediate",
         amenities: selectedAmenities,
@@ -390,7 +392,11 @@ export default function NewRoomPage() {
                       min="2"
                       max="10"
                       value={maxOccupants}
-                      onChange={(e) => setMaxOccupants(Math.max(2, Number(e.target.value)))}
+                      onChange={(e) => {
+                        const occupants = Math.max(2, Number(e.target.value));
+                        setMaxOccupants(occupants);
+                        setRentAmount(Math.round(totalRoomRent / occupants));
+                      }}
                       className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">Total beds (e.g., 2 for twin-sharing)</p>
@@ -410,6 +416,48 @@ export default function NewRoomPage() {
                       <option value="male">Male Only</option>
                     </select>
                     <p className="text-[11px] text-slate-500 mt-1">Gender preference for the shared room</p>
+                  </div>
+                </div>
+
+                {/* Total Actual Room Rent & Equal Split Breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-indigo-50/50 border border-indigo-100">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Total Actual Room Rent (₹ INR) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="500"
+                      required
+                      value={totalRoomRent}
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value));
+                        setTotalRoomRent(val);
+                        setRentAmount(Math.round(val / (maxOccupants || 2)));
+                      }}
+                      placeholder="16000"
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      The total lease rent payable for the entire room.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-white border border-indigo-200/80 shadow-xs flex flex-col justify-center">
+                    <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                      <span>⚡</span> Automated Equal Rent Split
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-xl font-black text-emerald-600">
+                        ₹{rentAmount.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-600">
+                        / month per person ({Math.round(100 / (maxOccupants || 2))}% split)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Calculated as ₹{totalRoomRent.toLocaleString("en-IN")} ÷ {maxOccupants} roommates
+                    </p>
                   </div>
                 </div>
 
@@ -445,34 +493,59 @@ export default function NewRoomPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {listingPurpose === "flatmate_share" ? "Your Share of Rent (₹ INR)" : "Monthly Rent (₹ INR)"}
-                </label>
-                <input
-                  type="number"
-                  min="500"
-                  required
-                  value={rentAmount}
-                  onChange={(e) => setRentAmount(Number(e.target.value))}
-                  placeholder="8500"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none font-semibold text-emerald-700"
-                />
-                {listingPurpose === "flatmate_share" && (
-                  <p className="text-[10px] text-slate-500 mt-1">The 50% split the new roommate will pay.</p>
-                )}
-              </div>
+              {listingPurpose === "flatmate_share" ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Roommate&apos;s Split Rent (₹ INR)
+                  </label>
+                  <input
+                    type="number"
+                    min="500"
+                    required
+                    value={rentAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setRentAmount(val);
+                      setTotalRoomRent(val * (maxOccupants || 2));
+                    }}
+                    placeholder="8000"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none font-bold text-emerald-700 bg-white"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Equal share billed to prospective roommate.</p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Rent (₹ INR)</label>
+                  <input
+                    type="number"
+                    min="500"
+                    required
+                    value={rentAmount}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setRentAmount(val);
+                      setTotalRoomRent(val);
+                    }}
+                    placeholder="15000"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none font-bold text-slate-900 bg-white"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Full monthly room rent.</p>
+                </div>
+              )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Security Deposit (₹ INR)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {listingPurpose === "flatmate_share" ? "Roommate Deposit Share (₹ INR)" : "Security Deposit (₹ INR)"}
+                </label>
                 <input
                   type="number"
                   min="0"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(Number(e.target.value))}
                   placeholder="15000"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none bg-white font-semibold"
                 />
+                <p className="text-[10px] text-slate-500 mt-1">One-time refundable security deposit.</p>
               </div>
             </div>
 

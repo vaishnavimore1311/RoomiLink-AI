@@ -50,6 +50,14 @@ function PricingContent() {
     loadPlans();
   }, []);
 
+  useEffect(() => {
+    if (user?.role === "seeker") {
+      setActiveTab("seeker");
+    } else if (user?.role === "lister") {
+      setActiveTab("lister");
+    }
+  }, [user?.role]);
+
   const handleSubscribe = async (plan: SubscriptionPlan) => {
     if (!isAuthenticated) {
       router.push("/login?redirect=/pricing");
@@ -78,7 +86,8 @@ function PricingContent() {
     await refreshUser();
   };
 
-  const filteredPlans = plans.filter((p) => p.target_role === activeTab);
+  const currentTab = user?.role === "seeker" ? "seeker" : activeTab;
+  const filteredPlans = plans.filter((p) => p.target_role === currentTab);
   const userActivePlanSlug = (user as any)?.subscription?.plan?.slug;
 
   return (
@@ -96,29 +105,37 @@ function PricingContent() {
             Whether finding a harmonious room in Pune or listing verified co-living properties, choose the plan that unlocks deeper AI intelligence and priority trust.
           </p>
 
-          {/* Role Tab Switcher */}
-          <div className="inline-flex items-center bg-slate-200/80 p-1.5 rounded-2xl shadow-inner mt-4">
-            <button
-              onClick={() => setActiveTab("seeker")}
-              className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === "seeker"
-                  ? "bg-white text-indigo-700 shadow-md"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              For Room Seekers
-            </button>
-            <button
-              onClick={() => setActiveTab("lister")}
-              className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === "lister"
-                  ? "bg-white text-teal-700 shadow-md"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              For Property Hosts &amp; Landlords
-            </button>
-          </div>
+          {/* Role Tab Switcher: Only shown if unauthenticated or non-seeker */}
+          {(!isAuthenticated || user?.role !== "seeker") ? (
+            <div className="inline-flex items-center bg-slate-200/80 p-1.5 rounded-2xl shadow-inner mt-4">
+              <button
+                type="button"
+                onClick={() => setActiveTab("seeker")}
+                className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  activeTab === "seeker"
+                    ? "bg-white text-indigo-700 shadow-md"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                For Room Seekers
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("lister")}
+                className={`px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  activeTab === "lister"
+                    ? "bg-white text-teal-700 shadow-md"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                For Property Hosts &amp; Landlords
+              </button>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-indigo-100/80 border border-indigo-200 text-indigo-900 text-xs font-bold mt-4 shadow-xs">
+              <span>🏠</span> Room Seeker Membership Plans
+            </div>
+          )}
         </div>
 
         {reason === "household_join" && (
