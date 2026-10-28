@@ -35,6 +35,12 @@ This document tracks all active issues created for the latest feature requiremen
 | **#86** | [Feature / Pricing Split] Actual room rent input and automated per-roommate equal split calculation | **Vaishnavi Nagtilak** | `@vaishnavi110` | Fullstack / Pricing | [#86](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/86) | Open (Ready for Dev) |
 | **#87** | [Backend / API] Roommate departure and admin removal endpoints with real-time broadcast notices | **Vaishnavi More** | `@vaishnavimore1311` | Backend / API | [#87](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/87) | Open (Ready for Dev) |
 | **#88** | [Frontend / Household] Roommate departure & removal UI with unsettled debt checks and departure notices | **Vaishnavi More** | `@vaishnavimore1311` | Frontend / Household | [#88](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/88) | Open (Ready for Dev) |
+| **#90** | [Admin / Theme] Implement Bright Enterprise Theme across Admin Center layout and dashboards | **Vaishnavi Nagtilak** | `@vaishnavi110` | Frontend / UI | [#90](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/90) | Open (Ready for Dev) |
+| **#91** | [Admin / Layout] Eliminate dual vertical scrollbar and horizontal table overflow in Admin layout | **Vaishnavi Nagtilak** | `@vaishnavi110` | Frontend / Bug | [#91](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/91) | Open (Ready for Dev) |
+| **#92** | [Admin / Data] Clean up Pune property titles, fix encoding glitches, and add Admin listing edit modal | **Sayali** | `@dsayali074-tech` | Backend / Data | [#92](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/92) | Open (Ready for Dev) |
+| **#93** | [Admin / Users] Add multi-criteria filters (Role, Subscription, Verification) and search to User Directory | **Sayali** | `@dsayali074-tech` | Frontend / Governance | [#93](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/93) | Open (Ready for Dev) |
+| **#94** | [Admin / Governance] User role change safeguards, audit confirmations, and admin self-demotion prevention | **Vaishnavi More** | `@vaishnavimore1311` | Fullstack / Security | [#94](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/94) | Open (Ready for Dev) |
+| **#95** | [Admin / Tools] In-table Photo ID verification modal and 1-click subscription grant from User Directory | **Vaishnavi More** | `@vaishnavimore1311` | Fullstack / Admin Tools | [#95](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/95) | Open (Ready for Dev) |
 
 ---
 
@@ -365,4 +371,77 @@ This document tracks all active issues created for the latest feature requiremen
       * Display warning if user has pending debts: *"You have ₹X in unpaid shared expenses. Confirm departure?"*
     * At the top of Household Hub:
       * If a recent departure notice exists, display a banner with a 1-click `[📢 Post Vacant Bed]` launcher.
+
+---
+
+### Issue #90: [Admin / Theme] Implement Bright Enterprise Theme across Admin Center layout and dashboards
+* **GitHub Issue**: [#90](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/90)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Upgrade the Admin Center (/admin) from the dark slate theme (`bg-slate-900 / bg-slate-950`) to a modern, crisp Bright Enterprise Theme with white cards, subtle borders, high-contrast typography, and vibrant status badges.
+* **Frontend Changes**:
+  * In `frontend/app/admin/layout.tsx`: Update canvas to `bg-slate-50`, sidebar to `bg-white` with `border-slate-200/80`, and text to `text-slate-900`.
+  * In `frontend/app/admin/page.tsx`: Modernize metric cards, stats, and action cards to clean white cards with slate borders and soft shadows.
+  * In `frontend/app/admin/rooms/page.tsx`, `frontend/app/admin/users/page.tsx`, and `frontend/app/admin/subscriptions/page.tsx`: Apply bright theme tables with `bg-slate-50` headers, slate borders, and high-contrast row styling.
+
+---
+
+### Issue #91: [Admin / Layout] Eliminate dual vertical scrollbar and horizontal table overflow in Admin layout
+* **GitHub Issue**: [#91](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/91)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Fix the side scrollbar glitch in the Admin Center caused by nested min-h-screen scrolling on both window and main content, as well as horizontal viewport expansion from wide tables.
+* **Frontend Changes**:
+  * In `frontend/app/admin/layout.tsx`: Set outer container to `h-screen w-screen overflow-hidden` and main canvas to `flex-1 h-full overflow-y-auto min-w-0`.
+  * In all admin tables: Wrap tables in `<div className="w-full overflow-x-auto">` to contain horizontal overflow within table containers.
+  * Verify on Chrome/Windows that only a single clean scrollbar appears and no horizontal side scrollbar leaks onto the page body.
+
+---
+
+### Issue #92: [Admin / Data] Clean up Pune property titles, fix encoding glitches, and add Admin listing edit modal
+* **GitHub Issue**: [#92](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/92)
+* **Assigned**: Sayali (`@dsayali074-tech`)
+* **Goal**: Audit and clean up Pune property inventory titles in the database, fix encoding corruption (e.g., corrupted em-dashes), populate missing localities, fix typos (e.g. Grrenspirit -> Greenspirit, recidency -> Residency), and add an Edit Listing modal in /admin/rooms.
+* **Changes**:
+  * Run database cleanup script to repair corrupted titles, fix spelling typos, capitalize city/title properly, and associate missing localities (Hinjewadi, Baner, Wakad, Kothrud).
+  * In `frontend/app/admin/rooms/page.tsx`: Remove `truncate max-w-xs` on listing titles so names are visible.
+  * Add an "Edit Listing" modal allowing administrators to update title, neighborhood, rent, and availability directly from the admin table.
+
+---
+
+### Issue #93: [Admin / Users] Add multi-criteria filters (Role, Subscription, Verification) and search to User Directory
+* **GitHub Issue**: [#93](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/93)
+* **Assigned**: Sayali (`@dsayali074-tech`)
+* **Goal**: Add a multi-criteria search and filter toolbar to the Admin User Governance directory (/admin/users) to easily filter registered members.
+* **Frontend Changes**:
+  * In `frontend/app/admin/users/page.tsx`:
+    * Add live search input filtering across Member Name, Email, and City.
+    * Add Role Filter dropdown: All Roles, Seekers Only, Listers Only, Admins Only.
+    * Add Subscription Tier Filter: All Tiers, Active Paid Subscribers, Free Tier Members.
+    * Add ID Verification Filter: All Statuses, Verified (✓), Pending Review (⏳), Unverified.
+    * Add active results counter (e.g., 'Showing 12 of 18 members') and Reset Filters button.
+
+---
+
+### Issue #94: [Admin / Governance] User role change safeguards, audit confirmations, and admin self-demotion prevention
+* **GitHub Issue**: [#94](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/94)
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Enhance role switching in the Admin User Directory (/admin/users) with safety guards preventing an admin from accidentally demoting their own logged-in account, and require confirmation when promoting users to Admin.
+* **Changes**:
+  * In `frontend/app/admin/users/page.tsx`:
+    * Disable the role dropdown for the currently logged-in admin user (`u.id === user.id`) with a safety badge/tooltip ('Current User - Protected').
+    * When changing a user's role to 'admin', prompt a confirmation dialog to prevent accidental privilege escalations.
+    * Show a clear success toast notification upon role updates.
+  * In `backend/app/routes/admin_routes.py`:
+    * In `admin_update_user_role()`, return 400 error if the logged-in admin attempts to demote their own account.
+
+---
+
+### Issue #95: [Admin / Tools] In-table Photo ID verification modal and 1-click subscription grant from User Directory
+* **GitHub Issue**: [#95](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/95)
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Provide fast admin workflows inside the User Directory (/admin/users) for inspecting and verifying submitted Photo IDs, and granting or extending subscription plans directly from user rows.
+* **Changes**:
+  * In `frontend/app/admin/users/page.tsx`:
+    * Clicking on a user's '⏳ ID Submitted' badge opens a quick verification modal showing the document metadata, with 1-click 'Approve & Verify' and 'Reject' actions.
+    * Add a 'Grant Plan' action button in each user table row that pre-fills the Grant Subscription modal with the user's email.
+  * Sync state immediately after verification approval or plan grant.
 
