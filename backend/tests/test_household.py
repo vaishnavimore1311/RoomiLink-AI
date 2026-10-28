@@ -1184,6 +1184,207 @@ def test_scenario_14_cors_preflight_and_five_thousand_split_precision(client):
     assert res_sneha.get_json()["data"]["total_owed_to_me"] == 3333.33
 
 
+def test_scenario_15_departure_unauthenticated_and_non_member(client):
+    """Scenario 15: Departure endpoints reject unauthenticated requests and non-members."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # 1. Unauthenticated leave -> 401
+    res_unauth_leave = client.post(f"/api/v1/household/{hh_id}/leave")
+    assert res_unauth_leave.status_code == 401
+
+    # 2. Unauthenticated remove -> 401
+    res_unauth_remove = client.delete(f"/api/v1/household/{hh_id}/members/{users['aditya'].id}")
+    assert res_unauth_remove.status_code == 401
+
+    # 3. Non-member user tries to leave -> 403
+    t_outsider = register_user(client, "outsider_departure@test.com", "Outsider", subscribe=True)
+    res_outsider_leave = client.post(
+        f"/api/v1/household/{hh_id}/leave",
+        headers={"Authorization": f"Bearer {t_outsider}"}
+    )
+    assert res_outsider_leave.status_code == 403
+    assert "not a member" in res_outsider_leave.get_json()["message"].lower()
+
+
+def test_scenario_16_member_leave_with_unsettled_debt_and_notice(client):
+    """Scenario 16: Member leaves with unsettled debt; debt history preserved and Notice activity created."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Sneha pays ₹2,000 for dinner with Rahul (Rahul owes ₹1,000)
+    client.post(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"},
+        json={
+            "title": "Welcome Dinner",
+            "category": "Food & Dining",
+            "total_amount": 2000.0,
+            "payer_id": users["sneha"].id,
+            "participant_ids": [users["sneha"].id, users["rahul"].id],
+            "split_method": "equal"
+        }
+    )
+
+    # Rahul owes ₹1,000 before leaving
+    res_before = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"}
+    )
+    assert res_before.get_json()["data"]["total_i_owe"] == 1000.0
+
+    # Rahul leaves the household
+    res_leave = client.post(
+        f"/api/v1/household/{hh_id}/leave",
+        headers={"Authorization": f"Bearer {tokens['rahul']}"}
+    )
+    assert res_leave.status_code == 200
+    leave_data = res_leave.get_json()["data"]
+    assert leave_data["unsettled_balance"] == 1000.0
+
+    # Rahul is no longer in household members
+    m_rahul = HouseholdMember.query.filter_by(household_id=hh_id, user_id=users["rahul"].id).first()
+    assert m_rahul is None
+
+    # Activity notice created
+    res_activities = client.get(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    act_list = res_activities.get_json()["data"]
+    notice_acts = [a for a in act_list if a["category"] == "Notice"]
+    assert len(notice_acts) >= 1
+    assert "Rahul has moved out of the household" in notice_acts[0]["title"]
+    assert "1000.00" in notice_acts[0]["notes"]
+
+    # Debt history is PRESERVED in the household ledger
+    res_sneha_ledger = client.get(
+        f"/api/v1/household/{hh_id}/expenses",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    sneha_data = res_sneha_ledger.get_json()["data"]
+    assert sneha_data["total_owed_to_me"] == 1000.0
+    debt_entry = next((d for d in sneha_data["debts"] if d["from_user_id"] == users["rahul"].id), None)
+    assert debt_entry is not None
+    assert debt_entry["amount"] == 1000.0
+
+
+def test_scenario_17_sole_admin_departure_and_reassignment(client):
+    """Scenario 17: When the sole admin leaves, the admin role is reassigned to the next oldest roommate."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Sneha is currently the only admin
+    m_sneha = HouseholdMember.query.filter_by(household_id=hh_id, user_id=users["sneha"].id).first()
+    assert m_sneha.role == "admin"
+
+    # Sneha leaves
+    res_leave = client.post(
+        f"/api/v1/household/{hh_id}/leave",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_leave.status_code == 200
+    assert res_leave.get_json()["data"]["reassigned_admin_id"] == users["aditya"].id
+
+    # Verify Aditya is now the admin
+    m_aditya = HouseholdMember.query.filter_by(household_id=hh_id, user_id=users["aditya"].id).first()
+    assert m_aditya.role == "admin"
+
+
+def test_scenario_18_admin_removes_member(client):
+    """Scenario 18: Admin removes a roommate, membership is deleted and Notice activity broadcast."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # Sneha (admin) removes Priya
+    res_remove = client.delete(
+        f"/api/v1/household/{hh_id}/members/{users['priya'].id}",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_remove.status_code == 200
+    assert "Priya was removed" in res_remove.get_json()["message"]
+
+    # Priya is no longer a member
+    m_priya = HouseholdMember.query.filter_by(household_id=hh_id, user_id=users["priya"].id).first()
+    assert m_priya is None
+
+    # Check broadcast notice
+    res_activities = client.get(
+        f"/api/v1/household/{hh_id}/activities",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    act_list = res_activities.get_json()["data"]
+    notice_acts = [a for a in act_list if a["category"] == "Notice"]
+    assert len(notice_acts) >= 1
+    assert "Priya was removed from the household roster" in notice_acts[0]["title"]
+
+
+def test_scenario_19_admin_removal_restrictions(client):
+    """Scenario 19: Non-admin removal, self-removal, and cross-household removal are rejected."""
+    setup = setup_four_roommate_household(client)
+    hh_id = setup["household_id"]
+    tokens = setup["tokens"]
+    users = setup["users"]
+
+    # 1. Non-admin (Aditya) tries to remove Rahul -> 403
+    res_non_admin = client.delete(
+        f"/api/v1/household/{hh_id}/members/{users['rahul'].id}",
+        headers={"Authorization": f"Bearer {tokens['aditya']}"}
+    )
+    assert res_non_admin.status_code == 403
+    assert "Only household admins" in res_non_admin.get_json()["message"]
+
+    # 2. Admin (Sneha) tries to remove herself via admin endpoint -> 400
+    res_self = client.delete(
+        f"/api/v1/household/{hh_id}/members/{users['sneha'].id}",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_self.status_code == 400
+    assert "leave household endpoint" in res_self.get_json()["message"].lower()
+
+    # 3. Admin (Sneha) tries to remove a user from another household -> 404
+    t_other = register_user(client, "other_hh_user@test.com", "OtherUser", subscribe=True)
+    u_other = User.query.filter_by(email="other_hh_user@test.com").first()
+    res_cross = client.delete(
+        f"/api/v1/household/{hh_id}/members/{u_other.id}",
+        headers={"Authorization": f"Bearer {tokens['sneha']}"}
+    )
+    assert res_cross.status_code == 404
+    assert "not a member" in res_cross.get_json()["message"].lower()
+
+
+def test_scenario_20_sole_member_workspace_dissolve(client):
+    """Scenario 20: When the only member in a household leaves, the workspace is safely cleaned up."""
+    t_solo = register_user(client, "solo_renter@test.com", "Solo Renter", subscribe=True)
+    res_c = client.post(
+        "/api/v1/household/create",
+        headers={"Authorization": f"Bearer {t_solo}"},
+        json={"name": "Solo Haven Studio", "address": "Baner, Pune"}
+    )
+    hh_id = res_c.get_json()["data"]["household"]["id"]
+
+    # Solo leaves
+    res_leave = client.post(
+        f"/api/v1/household/{hh_id}/leave",
+        headers={"Authorization": f"Bearer {t_solo}"}
+    )
+    assert res_leave.status_code == 200
+    assert res_leave.get_json()["data"]["dissolved"] is True
+
+    # Household is deleted
+    hh = db.session.get(Household, hh_id)
+    assert hh is None
+
+
+
 
 
 

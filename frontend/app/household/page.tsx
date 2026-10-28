@@ -67,6 +67,14 @@ function HouseholdContent() {
   const [choreDueDate, setChoreDueDate] = useState("Friday");
   const [choreAssignee, setChoreAssignee] = useState<string>("");
 
+  // Departure & Member Removal state
+  const [departureModalOpen, setDepartureModalOpen] = useState(false);
+  const [departureType, setDepartureType] = useState<"leave" | "remove">("leave");
+  const [departureTarget, setDepartureTarget] = useState<HouseholdMemberInfo | null>(null);
+  const [departureLoading, setDepartureLoading] = useState(false);
+  const [departureError, setDepartureError] = useState<string | null>(null);
+  const [departureSuccess, setDepartureSuccess] = useState<string | null>(null);
+
   const fetchHouseholdData = useCallback(async () => {
     if (!isAuthenticated) {
       setIsLoading(false);
@@ -241,6 +249,62 @@ function HouseholdContent() {
       if (ledgerRes.data?.data) setLedger(ledgerRes.data.data);
     } catch (err: any) {
       alert("Failed to settle debt: " + err?.message);
+    }
+  };
+
+  // Departure handlers
+  const handleOpenDepartureModal = (member: HouseholdMemberInfo, type: "leave" | "remove") => {
+    setDepartureTarget(member);
+    setDepartureType(type);
+    setDepartureError(null);
+    setDepartureSuccess(null);
+    setDepartureModalOpen(true);
+  };
+
+  const handleConfirmDeparture = async () => {
+    if (!household || !departureTarget) return;
+    setDepartureLoading(true);
+    setDepartureError(null);
+    setDepartureSuccess(null);
+
+    try {
+      if (departureType === "leave") {
+        const res = await apiRequest<{ message: string; data?: any }>(
+          `/household/${household.id}/leave`,
+          { method: "POST", requiresAuth: true }
+        );
+        if (res.error) {
+          setDepartureError(res.error);
+          setDepartureLoading(false);
+          return;
+        }
+        setDepartureSuccess(res.data?.message || "Successfully left household.");
+        setTimeout(() => {
+          setDepartureModalOpen(false);
+          setDepartureLoading(false);
+          setHousehold(null);
+          fetchHouseholdData();
+        }, 1200);
+      } else {
+        const res = await apiRequest<{ message: string; data?: any }>(
+          `/household/${household.id}/members/${departureTarget.user_id}`,
+          { method: "DELETE", requiresAuth: true }
+        );
+        if (res.error) {
+          setDepartureError(res.error);
+          setDepartureLoading(false);
+          return;
+        }
+        setDepartureSuccess(res.data?.message || "Member removed from household.");
+        setTimeout(() => {
+          setDepartureModalOpen(false);
+          setDepartureLoading(false);
+          fetchHouseholdData();
+        }, 1200);
+      }
+    } catch (err: any) {
+      setDepartureError(err?.message || "An unexpected error occurred during departure.");
+      setDepartureLoading(false);
     }
   };
 
@@ -695,36 +759,81 @@ function HouseholdContent() {
           </div>
         </div>
 
-        {/* 1-Click Post Vacant Space Replacement Launcher Banner */}
-        <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 rounded-2xl p-5 text-white shadow-md border border-purple-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-200 border border-purple-400/30 flex items-center justify-center text-xl shrink-0">
-              🤝
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-sm text-white">
-                  Spare Bed or Empty Room in Your Flat?
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/30 text-purple-200 border border-purple-400/30 uppercase tracking-wider">
-                  Flatmate Replacement
-                </span>
-              </div>
-              <p className="text-xs text-purple-200/90 mt-0.5 leading-relaxed">
-                Post your vacant space to RoomiLink in 1-click. Split domestic rent &amp; bills with a verified, AI-compatible flatmate.
-              </p>
-            </div>
-          </div>
+        {/* Departure Announcement Banner or Vacant Space Launcher */}
+        {(() => {
+          const departureNotice = activities.find(
+            (a) =>
+              a.category === "Notice" ||
+              a.title?.toLowerCase().includes("moved out") ||
+              a.title?.toLowerCase().includes("removed from the household")
+          );
 
-          <Link
-            href={`/rooms/new?purpose=flatmate_share&source=household&household_id=${household.id}&address=${encodeURIComponent(
-              household.address || ""
-            )}&title=${encodeURIComponent(`Shared Bed in ${household.name}`)}`}
-            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-950/40 transition-all active:scale-95 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>📢 Post Vacant Space &rarr;</span>
-          </Link>
-        </div>
+          if (departureNotice) {
+            return (
+              <div className="bg-gradient-to-r from-amber-900 via-orange-950 to-amber-900 rounded-2xl p-5 text-white shadow-md border border-amber-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-200 border border-amber-400/30 flex items-center justify-center text-xl shrink-0">
+                    🚪
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-white">
+                        {departureNotice.title}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/30 text-amber-200 border border-amber-400/30 uppercase tracking-wider">
+                        Vacant Bed Available
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-200/90 mt-0.5 leading-relaxed">
+                      A roommate has recently departed from this household. Post a vacant bed listing to find a verified, AI-compatible flatmate replacement.
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href={`/rooms/new?purpose=flatmate_share&source=household&household_id=${household.id}&address=${encodeURIComponent(
+                    household.address || ""
+                  )}&title=${encodeURIComponent(`Vacant Bed in ${household.name}`)}`}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-950/40 transition-all active:scale-95 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>🛏️ Post Vacant Bed &rarr;</span>
+                </Link>
+              </div>
+            );
+          }
+
+          return (
+            <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 rounded-2xl p-5 text-white shadow-md border border-purple-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-purple-500/20 text-purple-200 border border-purple-400/30 flex items-center justify-center text-xl shrink-0">
+                  🤝
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm text-white">
+                      Spare Bed or Empty Room in Your Flat?
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/30 text-purple-200 border border-purple-400/30 uppercase tracking-wider">
+                      Flatmate Replacement
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-200/90 mt-0.5 leading-relaxed">
+                    Post your vacant space to RoomiLink in 1-click. Split domestic rent &amp; bills with a verified, AI-compatible flatmate.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href={`/rooms/new?purpose=flatmate_share&source=household&household_id=${household.id}&address=${encodeURIComponent(
+                  household.address || ""
+                )}&title=${encodeURIComponent(`Shared Bed in ${household.name}`)}`}
+                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-950/40 transition-all active:scale-95 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>📢 Post Vacant Space &rarr;</span>
+              </Link>
+            </div>
+          );
+        })()}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 space-x-6 text-sm font-semibold">
@@ -1207,33 +1316,70 @@ function HouseholdContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {members.map((m) => (
-                <div
-                  key={m.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center space-x-3"
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-xs">
-                    {m.user_name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="font-semibold text-xs text-slate-900 truncate">
-                        {m.user_name}
-                      </p>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                          m.role === "admin"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {m.role}
-                      </span>
+              {members.map((m) => {
+                const isCurrentUser = m.user_id === user?.id;
+                const canRemove = myRole === "admin" && !isCurrentUser;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
+                        {m.user_name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <p className="font-semibold text-xs text-slate-900 truncate">
+                            {m.user_name}
+                          </p>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                              m.role === "admin"
+                                ? "bg-indigo-100 text-indigo-700"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {m.role}
+                          </span>
+                          {isCurrentUser && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate">{m.user_email}</p>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-400 truncate">{m.user_email}</p>
+
+                    {/* Departure & Removal Actions */}
+                    {(isCurrentUser || canRemove) && (
+                      <div className="pt-2 border-t border-slate-200/60 flex justify-end">
+                        {isCurrentUser ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDepartureModal(m, "leave")}
+                            className="px-3 py-1.5 text-[11px] font-semibold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>🚪</span>
+                            <span>Move Out / Leave Household</span>
+                          </button>
+                        ) : canRemove ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDepartureModal(m, "remove")}
+                            className="px-3 py-1 text-[11px] font-semibold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition active:scale-95 cursor-pointer flex items-center gap-1"
+                          >
+                            <span>✕</span>
+                            <span>Remove</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -1826,6 +1972,120 @@ function HouseholdContent() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Household Departure Confirmation */}
+        {departureModalOpen && departureTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{departureType === "leave" ? "🚪" : "⚠️"}</span>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {departureType === "leave" ? "Confirm Household Departure" : `Remove ${departureTarget.user_name}`}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => !departureLoading && setDepartureModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-700 font-bold"
+                  disabled={departureLoading}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {departureError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                  ⚠️ {departureError}
+                </div>
+              )}
+
+              {departureSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                  <span>✓</span>
+                  <span>{departureSuccess}</span>
+                </div>
+              )}
+
+              {(() => {
+                const isSelf = departureType === "leave";
+                const unpaidDebt = isSelf
+                  ? (ledger?.total_i_owe || 0)
+                  : (ledger?.debts?.filter(d => d.from_user_id === departureTarget.user_id).reduce((sum, d) => sum + d.amount, 0) || 0);
+
+                const isSoleAdmin = isSelf && myRole === "admin" && members.filter(m => m.role === "admin").length === 1;
+                const otherMembersCount = members.filter(m => m.user_id !== departureTarget.user_id).length;
+
+                return (
+                  <div className="space-y-3 text-xs text-slate-700">
+                    {/* Unsettled Debt Warning */}
+                    {unpaidDebt > 0 ? (
+                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-amber-950">
+                        <p className="font-bold text-amber-900 flex items-center gap-1.5">
+                          <span>⚠️</span>
+                          <span>
+                            {isSelf
+                              ? `You have INR ${unpaidDebt.toFixed(2)} in unpaid shared expenses. Confirm departure?`
+                              : `${departureTarget.user_name} has INR ${unpaidDebt.toFixed(2)} in unpaid shared expenses. Confirm removal?`}
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          Existing financial obligations will remain preserved in the household debt ledger until formally settled with roommates.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-slate-600 leading-relaxed">
+                        {isSelf
+                          ? `Are you sure you want to move out of ${household?.name}? You will lose access to this shared household workspace.`
+                          : `Are you sure you want to remove ${departureTarget.user_name} from the active household roster?`}
+                      </p>
+                    )}
+
+                    {/* Sole admin reassignment notice */}
+                    {isSoleAdmin && otherMembersCount > 0 && (
+                      <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-950 text-[11px] leading-relaxed">
+                        👑 <strong>Admin Transfer:</strong> Because you are the sole household admin, admin privileges will automatically transfer to the next oldest roommate upon your departure.
+                      </div>
+                    )}
+
+                    {/* Sole member dissolution notice */}
+                    {isSelf && otherMembersCount === 0 && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-950 text-[11px] leading-relaxed">
+                        🏠 <strong>Workspace Dissolution:</strong> You are the last remaining member. Confirming departure will dissolve and clean up this household workspace.
+                      </div>
+                    )}
+
+                    <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setDepartureModalOpen(false)}
+                        disabled={departureLoading}
+                        className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeparture}
+                        disabled={departureLoading}
+                        className={`px-5 py-2.5 rounded-xl font-bold text-white shadow-md transition cursor-pointer disabled:opacity-50 ${
+                          unpaidDebt > 0
+                            ? "bg-amber-600 hover:bg-amber-700"
+                            : "bg-rose-600 hover:bg-rose-700"
+                        }`}
+                      >
+                        {departureLoading
+                          ? "Processing..."
+                          : isSelf
+                          ? "Confirm Move Out & Leave"
+                          : `Remove ${departureTarget.user_name}`}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

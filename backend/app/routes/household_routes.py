@@ -487,3 +487,169 @@ def toggle_chore(household_id, chore_id):
         "message": f"Chore marked as {'completed' if chore.is_completed else 'pending'}.",
         "data": chore.to_dict()
     }), 200
+
+
+# ==================== DEPARTURE & ROSTER MANAGEMENT ====================
+
+@household_bp.route("/<int:household_id>/leave", methods=["POST"])
+@jwt_required()
+def leave_household(household_id):
+    """Allow a roommate to leave a household workspace."""
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    household = db.session.get(Household, household_id)
+    if not household:
+        return jsonify({"status": "error", "message": "Household not found."}), 404
+
+    membership = HouseholdMember.query.filter_by(household_id=household_id, user_id=user_id).first()
+    if not membership:
+        return jsonify({"status": "error", "message": "You are not a member of this household."}), 403
+
+    # Check unsettled debt balances from ledger
+    ledger = calculate_ledger(household_id, current_user_id=user_id)
+    unsettled_balance = round(float(ledger.get("total_i_owe", 0.0)), 2)
+
+    user_name = user.profile.full_name if (user and user.profile and user.profile.full_name) else (user.email if user else f"User {user_id}")
+
+    try:
+        # Check other members in the household
+        other_members = HouseholdMember.query.filter(
+            HouseholdMember.household_id == household_id,
+            HouseholdMember.user_id != user_id
+        ).order_by(HouseholdMember.joined_at.asc()).all()
+
+        reassigned_admin_id = None
+        if membership.role == "admin":
+            other_admins = [m for m in other_members if m.role == "admin"]
+            if not other_admins and other_members:
+                # Sole admin leaving: reassign admin role to the next oldest member
+                next_admin = other_members[0]
+                next_admin.role = "admin"
+                household.created_by_id = next_admin.user_id
+                reassigned_admin_id = next_admin.user_id
+
+        if not other_members:
+            # Sole member leaving - clean up the workspace
+            db.session.delete(membership)
+            db.session.delete(household)
+            db.session.commit()
+            return jsonify({
+                "status": "success",
+                "message": f"You have left {household.name}. The workspace has been cleaned up.",
+                "data": {
+                    "household_id": household_id,
+                    "dissolved": True,
+                    "unsettled_balance": unsettled_balance
+                }
+            }), 200
+
+        # Delete departing member record while preserving expense/payment history
+        db.session.delete(membership)
+
+        # Create Activity broadcast notice
+        notice = Activity(
+            household_id=household_id,
+            created_by_id=user_id,
+            payer_id=user_id,
+            title=f"{user_name} has moved out of the household",
+            description=f"{user_name} left the household.",
+            category="Notice",
+            total_amount=0.0,
+            split_method="none",
+            activity_date=datetime.now(timezone.utc),
+            notes=f"Unsettled balance at departure: INR {unsettled_balance:.2f}" if unsettled_balance > 0 else "All debts settled."
+        )
+        db.session.add(notice)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully left {household.name}.",
+            "data": {
+                "household_id": household_id,
+                "unsettled_balance": unsettled_balance,
+                "reassigned_admin_id": reassigned_admin_id
+            }
+        }), 200
+
+    except Exception as ex:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to leave household: {str(ex)}"
+        }), 500
+
+
+@household_bp.route("/<int:household_id>/members/<int:target_user_id>", methods=["DELETE"])
+@jwt_required()
+def remove_member(household_id, target_user_id):
+    """Allow a household admin to remove a departed member from the roster."""
+    current_user_id = int(get_jwt_identity())
+
+    household = db.session.get(Household, household_id)
+    if not household:
+        return jsonify({"status": "error", "message": "Household not found."}), 404
+
+    requester_member = HouseholdMember.query.filter_by(household_id=household_id, user_id=current_user_id).first()
+    if not requester_member:
+        return jsonify({"status": "error", "message": "You are not a member of this household."}), 403
+
+    if requester_member.role != "admin":
+        return jsonify({"status": "error", "message": "Only household admins can remove members."}), 403
+
+    if current_user_id == target_user_id:
+        return jsonify({
+            "status": "error",
+            "message": "Admins cannot remove themselves through this endpoint. Please use the leave household endpoint instead."
+        }), 400
+
+    target_member = HouseholdMember.query.filter_by(household_id=household_id, user_id=target_user_id).first()
+    if not target_member:
+        return jsonify({"status": "error", "message": "Target user is not a member of this household."}), 404
+
+    target_user = db.session.get(User, target_user_id)
+    target_name = target_user.profile.full_name if (target_user and target_user.profile and target_user.profile.full_name) else (target_user.email if target_user else f"User {target_user_id}")
+
+    # Check unsettled debts from ledger
+    target_ledger = calculate_ledger(household_id, current_user_id=target_user_id)
+    unsettled_balance = round(float(target_ledger.get("total_i_owe", 0.0)), 2)
+
+    try:
+        # Delete membership record while preserving financial history
+        db.session.delete(target_member)
+
+        # Create Activity broadcast notice
+        notice = Activity(
+            household_id=household_id,
+            created_by_id=current_user_id,
+            payer_id=current_user_id,
+            title=f"{target_name} was removed from the household roster",
+            description=f"{target_name} was removed by admin.",
+            category="Notice",
+            total_amount=0.0,
+            split_method="none",
+            activity_date=datetime.now(timezone.utc),
+            notes=f"Unsettled balance at removal: INR {unsettled_balance:.2f}" if unsettled_balance > 0 else "All debts settled."
+        )
+        db.session.add(notice)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"{target_name} was removed from the household roster.",
+            "data": {
+                "removed_user_id": target_user_id,
+                "unsettled_balance": unsettled_balance
+            }
+        }), 200
+
+    except Exception as ex:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to remove member: {str(ex)}"
+        }), 500
+
