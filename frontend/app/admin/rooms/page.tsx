@@ -112,53 +112,53 @@ export default function AdminRoomsListPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Manage Room Listings
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Total active &amp; featured properties across Pune and platform network.
           </p>
         </div>
 
         <Link
           href="/admin/rooms/new"
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-all self-start sm:self-auto flex items-center gap-2"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-indigo-100 transition-all self-start sm:self-auto flex items-center gap-2 active:scale-95"
         >
           <span>➕</span> Add Room in Pune
         </Link>
       </div>
 
       {actionSuccess && (
-        <div className="p-3 bg-emerald-950/60 border border-emerald-800 rounded-xl text-emerald-300 text-xs">
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-semibold">
           ✓ {actionSuccess}
         </div>
       )}
 
       {error && (
-        <div className="p-3 bg-rose-950/60 border border-rose-800 rounded-xl text-rose-300 text-xs">
+        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs font-semibold">
           {error}
         </div>
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-slate-950 p-4 rounded-2xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCityFilter("Pune")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
               cityFilter === "Pune"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-900 text-slate-400 hover:text-white"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             📍 Pune City Only
           </button>
           <button
             onClick={() => setCityFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
               cityFilter === "all"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-900 text-slate-400 hover:text-white"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             All Cities
@@ -171,27 +171,27 @@ export default function AdminRoomsListPage() {
             placeholder="Search title, neighborhood..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
         </div>
       </div>
 
       {/* Table Container */}
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-xs text-slate-400">
-            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="p-12 text-center text-xs text-slate-500">
+            <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             Loading listings...
           </div>
         ) : rooms.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-400">
+          <div className="p-12 text-center text-xs text-slate-500">
             No listings found matching filter criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 font-semibold bg-slate-900/50">
+                <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50 uppercase tracking-wider text-[11px]">
                   <th className="py-3 px-4">Property &amp; Locality</th>
                   <th className="py-3 px-4">Rent (Monthly)</th>
                   <th className="py-3 px-4">Room Type</th>
@@ -200,9 +200,9 @@ export default function AdminRoomsListPage() {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900">
+              <tbody className="divide-y divide-slate-100">
                 {rooms.map((room) => (
-                  <tr key={room.id} className="hover:bg-slate-900/40 transition-colors">
+                  <tr key={room.id} className="hover:bg-slate-50/70 transition-colors">
                     {/* Property info */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
@@ -210,11 +210,11 @@ export default function AdminRoomsListPage() {
                         <img
                           src={room.images?.[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=150"}
                           alt={room.title}
-                          className="w-12 h-10 rounded-lg object-cover bg-slate-800 shrink-0"
+                          className="w-12 h-10 rounded-lg object-cover bg-slate-100 border border-slate-200/80 shrink-0"
                         />
                         <div className="overflow-hidden">
-                          <p className="font-bold text-white truncate max-w-xs">{room.title}</p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="font-bold text-slate-900 truncate max-w-xs">{room.title}</p>
+                          <p className="text-[11px] text-slate-500">
                             {room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}
                           </p>
                         </div>
@@ -223,7 +223,7 @@ export default function AdminRoomsListPage() {
 
                     {/* Rent */}
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-emerald-400">
+                      <span className="font-extrabold text-emerald-700 text-sm">
                         ₹{room.rent_amount.toLocaleString("en-IN")}
                       </span>
                       <span className="text-[10px] text-slate-500 block">
@@ -232,7 +232,7 @@ export default function AdminRoomsListPage() {
                     </td>
 
                     {/* Room Type */}
-                    <td className="py-3.5 px-4 text-slate-300 capitalize">
+                    <td className="py-3.5 px-4 text-slate-700 capitalize font-medium">
                       {room.room_type} Room
                       <span className="text-[10px] text-slate-500 block capitalize">
                         {room.property_type}
@@ -245,8 +245,8 @@ export default function AdminRoomsListPage() {
                         onClick={() => toggleFeatured(room)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
                           room.is_featured
-                            ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                            : "bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300"
+                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
                         }`}
                       >
                         {room.is_featured ? "⭐ Featured" : "Standard"}
@@ -259,8 +259,8 @@ export default function AdminRoomsListPage() {
                         onClick={() => toggleAvailability(room)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
                           room.is_available
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                            : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : "bg-rose-100 text-rose-800 border-rose-300"
                         }`}
                       >
                         {room.is_available ? "Available" : "Occupied"}
@@ -273,13 +273,13 @@ export default function AdminRoomsListPage() {
                         <Link
                           href={`/rooms`}
                           target="_blank"
-                          className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-[11px] border border-slate-800 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors"
                         >
                           View Live ↗
                         </Link>
                         <button
                           onClick={() => deleteRoom(room.id, room.title)}
-                          className="px-2.5 py-1 rounded bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 text-[11px] border border-rose-900/50 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold border border-rose-200 transition-colors"
                         >
                           Delete
                         </button>
