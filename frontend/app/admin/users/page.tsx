@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { User, VerificationDocument } from "@/types/auth";
 
-// ─── ID Verification Modal (Issue #95) ────────────────────────────────────────
+// â”€â”€â”€ ID Verification Modal (Issue #95) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface VerificationModalProps {
   targetUser: User;
@@ -93,7 +93,7 @@ function VerificationModal({
         <div className="p-5 border-b border-slate-200/80 bg-amber-50 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-extrabold text-slate-900 text-sm">
-              🪪 Photo ID Verification Review
+              ðŸªª Photo ID Verification Review
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
               {targetUser.profile?.full_name || targetUser.email}
@@ -104,7 +104,7 @@ function VerificationModal({
             className="text-slate-400 hover:text-slate-700 text-lg leading-none font-bold flex-shrink-0"
             aria-label="Close"
           >
-            ×
+            Ã—
           </button>
         </div>
 
@@ -122,7 +122,7 @@ function VerificationModal({
                     Document Type
                   </span>
                   <span className="font-semibold text-slate-800 capitalize">
-                    {doc.document_type?.replace(/_/g, " ") || "—"}
+                    {doc.document_type?.replace(/_/g, " ") || "â€”"}
                   </span>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
@@ -146,7 +146,7 @@ function VerificationModal({
                     File Name
                   </span>
                   <span className="font-mono text-slate-700 truncate block text-[11px]">
-                    {doc.original_filename || "—"}
+                    {doc.original_filename || "â€”"}
                   </span>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
@@ -169,7 +169,7 @@ function VerificationModal({
                 </div>
               )}
               <div className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                🔒 File content is stored securely. Only metadata is displayed
+                ðŸ”’ File content is stored securely. Only metadata is displayed
                 here.
               </div>
             </div>
@@ -183,7 +183,7 @@ function VerificationModal({
 
           {confirmReject && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold">
-              ⚠️ Click "Reject" again to confirm. This will mark the document as
+              âš ï¸ Click "Reject" again to confirm. This will mark the document as
               rejected.
             </div>
           )}
@@ -200,15 +200,15 @@ function VerificationModal({
               {isRejecting
                 ? "Rejecting..."
                 : confirmReject
-                ? "⚠️ Confirm Reject"
-                : "✗ Reject"}
+                ? "âš ï¸ Confirm Reject"
+                : "âœ— Reject"}
             </button>
             <button
               onClick={handleApprove}
               disabled={isApproving || isRejecting || !doc}
               className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-sm shadow-emerald-100 transition-all active:scale-95"
             >
-              {isApproving ? "Approving..." : "✓ Approve & Verify"}
+              {isApproving ? "Approving..." : "âœ“ Approve & Verify"}
             </button>
           </div>
         )}
@@ -227,7 +227,7 @@ function VerificationModal({
   );
 }
 
-// ─── Grant Subscription Modal (Issue #95) ────────────────────────────────────
+// â”€â”€â”€ Grant Subscription Modal (Issue #95) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface GrantPlanModalProps {
   prefillEmail: string;
@@ -284,7 +284,7 @@ function GrantPlanModal({
         <div className="p-5 border-b border-slate-200/80 bg-indigo-50 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-extrabold text-slate-900 text-sm">
-              🎁 Grant Subscription Plan
+              ðŸŽ Grant Subscription Plan
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
               Manually grant a VIP plan to this user
@@ -295,7 +295,7 @@ function GrantPlanModal({
             className="text-slate-400 hover:text-slate-700 text-lg leading-none font-bold flex-shrink-0"
             aria-label="Close"
           >
-            ×
+            Ã—
           </button>
         </div>
 
@@ -324,8 +324,8 @@ function GrantPlanModal({
                 onChange={(e) => setGrantPlan(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
               >
-                <option value="pro_seeker">Pro Seeker (₹499)</option>
-                <option value="featured_host">Featured Host (₹999)</option>
+                <option value="pro_seeker">Pro Seeker (â‚¹499)</option>
+                <option value="featured_host">Featured Host (â‚¹999)</option>
               </select>
             </div>
             <div>
@@ -364,7 +364,7 @@ function GrantPlanModal({
               disabled={isGranting}
               className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95"
             >
-              {isGranting ? "Granting..." : "🎁 Grant Plan"}
+              {isGranting ? "Granting..." : "ðŸŽ Grant Plan"}
             </button>
           </div>
         </form>
@@ -373,7 +373,7 @@ function GrantPlanModal({
   );
 }
 
-// ─── Role Change Confirmation Dialog (Issue #94) ──────────────────────────────
+// â”€â”€â”€ Role Change Confirmation Dialog (Issue #94) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface RoleConfirmModalProps {
   targetUser: User;
@@ -393,7 +393,7 @@ function RoleConfirmModal({
       <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full border border-slate-200/80 overflow-hidden">
         <div className="p-5 border-b border-slate-200/80 bg-purple-50">
           <h2 className="font-extrabold text-slate-900 text-sm">
-            👑 Promote to Admin?
+            ðŸ‘‘ Promote to Admin?
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
             This grants full platform administrator access.
@@ -422,7 +422,7 @@ function RoleConfirmModal({
               onClick={onConfirm}
               className="flex-1 py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm shadow-purple-100 transition-all active:scale-95"
             >
-              ✓ Confirm Promotion
+              âœ“ Confirm Promotion
             </button>
           </div>
         </div>
@@ -431,7 +431,7 @@ function RoleConfirmModal({
   );
 }
 
-// ─── Main Admin Users Page ────────────────────────────────────────────────────
+// â”€â”€â”€ Main Admin Users Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function AdminUsersPage() {
   const { user: currentAdmin } = useAuth();
@@ -454,6 +454,11 @@ export default function AdminUsersPage() {
 
   // Per-row role updating state
   const [updatingRoles, setUpdatingRoles] = useState<Set<number>>(new Set());
+  // Multi-criteria filter states (Issue #93)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+  const [verificationFilter, setVerificationFilter] = useState("all");
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -483,7 +488,7 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // ── Role change handler (Issue #94) ──────────────────────────────────────
+  // â”€â”€ Role change handler (Issue #94) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleRoleChange = async (targetUser: User, newRole: string) => {
     // Issue #94: Prevent self-demotion in frontend
@@ -547,7 +552,7 @@ export default function AdminUsersPage() {
     await executeRoleChange(targetUser.id, newRole);
   };
 
-  // ── Verification handlers (Issue #95) ────────────────────────────────────
+  // â”€â”€ Verification handlers (Issue #95) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleVerificationApproved = (updatedUser: User) => {
     setUsers((prev) =>
@@ -574,9 +579,79 @@ export default function AdminUsersPage() {
   const isSelf = (u: User) =>
     currentAdmin !== null && u.id === currentAdmin?.id;
 
+  // Filter users based on search, role, subscription tier, and ID verification status (Issue #93)
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      // 1. Live Search (Member Name, Email, City)
+      if (searchTerm.trim()) {
+        const query = searchTerm.trim().toLowerCase();
+        const name = (u.profile?.full_name || "").toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        const city = (u.profile?.city || "").toLowerCase();
+        if (!name.includes(query) && !email.includes(query) && !city.includes(query)) {
+          return false;
+        }
+      }
+
+      // 2. Role Filter (All Roles, Seekers Only, Listers Only, Admins Only)
+      if (roleFilter !== "all") {
+        if (u.role !== roleFilter) {
+          return false;
+        }
+      }
+
+      // 3. Subscription Tier Filter (All Tiers, Active Paid Subscribers, Free Tier Members)
+      if (subscriptionFilter !== "all") {
+        const sub = (u as any).subscription;
+        const isActiveSubscriber = Boolean(
+          sub && (sub.is_active === true || sub.status === "active")
+        );
+        if (subscriptionFilter === "paid" && !isActiveSubscriber) {
+          return false;
+        }
+        if (subscriptionFilter === "free" && isActiveSubscriber) {
+          return false;
+        }
+      }
+
+      // 4. ID Verification Filter (All Statuses, Verified, Pending Review, Unverified)
+      if (verificationFilter !== "all") {
+        const doc: VerificationDocument | null | undefined = u.verification_document;
+        const isVerified = Boolean(u.is_verified || doc?.status === "verified");
+        const isPending = !isVerified && Boolean(doc && doc.status === "submitted");
+        const isUnverified = !isVerified && !isPending;
+
+        if (verificationFilter === "verified" && !isVerified) {
+          return false;
+        }
+        if (verificationFilter === "pending" && !isPending) {
+          return false;
+        }
+        if (verificationFilter === "unverified" && !isUnverified) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [users, searchTerm, roleFilter, subscriptionFilter, verificationFilter]);
+
+  const isFiltered =
+    searchTerm.trim() !== "" ||
+    roleFilter !== "all" ||
+    subscriptionFilter !== "all" ||
+    verificationFilter !== "all";
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setRoleFilter("all");
+    setSubscriptionFilter("all");
+    setVerificationFilter("all");
+  };
+
   return (
     <div className="space-y-6">
-      {/* ── Modals ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {verifyTarget && (
         <VerificationModal
           targetUser={verifyTarget}
@@ -603,7 +678,7 @@ export default function AdminUsersPage() {
         />
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
           Community &amp; User Governance
@@ -614,10 +689,10 @@ export default function AdminUsersPage() {
         </p>
       </div>
 
-      {/* ── Toast Notifications ──────────────────────────────────────────── */}
+      {/* â”€â”€ Toast Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {successMsg && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-semibold">
-          ✓ {successMsg}
+          âœ“ {successMsg}
         </div>
       )}
 
@@ -628,16 +703,142 @@ export default function AdminUsersPage() {
             onClick={() => setError(null)}
             className="text-rose-500 hover:text-rose-700 font-bold text-sm leading-none flex-shrink-0"
           >
-            ×
+            Ã—
           </button>
         </div>
       )}
 
-      {/* ── Users Table ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ Filter & Search Toolbar (Issue #93) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Live Search */}
+          <div>
+            <label
+              htmlFor="user-search-input"
+              className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+            >
+              Search Members
+            </label>
+            <div className="relative">
+              <input
+                id="user-search-input"
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Name, email, or city..."
+                className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition"
+              />
+              <span className="absolute left-3 top-2.5 text-slate-400 text-xs pointer-events-none">
+                ðŸ”
+              </span>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  aria-label="Clear search"
+                >
+                  âœ•
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Role Filter */}
+          <div>
+            <label
+              htmlFor="role-filter-select"
+              className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+            >
+              Member Role
+            </label>
+            <select
+              id="role-filter-select"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition font-medium text-slate-800"
+            >
+              <option value="all">All Roles</option>
+              <option value="seeker">Seekers Only</option>
+              <option value="lister">Listers Only</option>
+              <option value="admin">Admins Only</option>
+            </select>
+          </div>
+
+          {/* Subscription Tier Filter */}
+          <div>
+            <label
+              htmlFor="subscription-filter-select"
+              className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+            >
+              Subscription Tier
+            </label>
+            <select
+              id="subscription-filter-select"
+              value={subscriptionFilter}
+              onChange={(e) => setSubscriptionFilter(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition font-medium text-slate-800"
+            >
+              <option value="all">All Tiers</option>
+              <option value="paid">Active Paid Subscribers</option>
+              <option value="free">Free Tier Members</option>
+            </select>
+          </div>
+
+          {/* ID Verification Filter */}
+          <div>
+            <label
+              htmlFor="verification-filter-select"
+              className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+            >
+              ID Verification
+            </label>
+            <select
+              id="verification-filter-select"
+              value={verificationFilter}
+              onChange={(e) => setVerificationFilter(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none transition font-medium text-slate-800"
+            >
+              <option value="all">All Statuses</option>
+              <option value="verified">Verified (âœ“)</option>
+              <option value="pending">Pending Review (â³)</option>
+              <option value="unverified">Unverified</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Results Counter and Reset Filters */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-600">
+              Showing <span className="font-bold text-slate-900">{filteredUsers.length}</span> of{" "}
+              <span className="font-bold text-slate-900">{users.length}</span> members
+            </span>
+            {isFiltered && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Filtered
+              </span>
+            )}
+          </div>
+
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
+            >
+              <span>â†º</span>
+              <span>Reset Filters</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* â”€â”€ Users Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
           <h2 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
-            Registered Members ({users.length})
+            Registered Members ({filteredUsers.length}{isFiltered ? ` of ${users.length}` : ""})
           </h2>
         </div>
 
@@ -649,6 +850,27 @@ export default function AdminUsersPage() {
         ) : users.length === 0 ? (
           <div className="p-12 text-center text-xs text-slate-500">
             No registered users found.
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-12 text-center text-xs space-y-3">
+            <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center text-base mx-auto font-bold">
+              ðŸ”
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 text-sm">No members match your filters</p>
+              <p className="text-slate-500 mt-1">
+                Try adjusting your search keyword or relaxing selected filter criteria.
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer"
+              >
+                Reset All Filters
+              </button>
+            </div>
           </div>
         ) : (
           <div className="w-full overflow-x-auto">
@@ -666,7 +888,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {users.map((u) => {
+                {filteredUsers.map((u) => {
                   const hasSub = (u as any).subscription;
                   const doc: VerificationDocument | null | undefined =
                     u.verification_document;
@@ -726,7 +948,7 @@ export default function AdminUsersPage() {
                       <td className="py-3.5 px-4">
                         {hasSub ? (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            ⭐ {hasSub.plan?.name || "Active Sub"}
+                            â­ {hasSub.plan?.name || "Active Sub"}
                           </span>
                         ) : (
                           <span className="text-slate-400 text-[11px] font-medium">
@@ -739,7 +961,7 @@ export default function AdminUsersPage() {
                       <td className="py-3.5 px-4">
                         {u.is_verified ? (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            ✓ Verified
+                            âœ“ Verified
                           </span>
                         ) : doc ? (
                           <button
@@ -747,7 +969,7 @@ export default function AdminUsersPage() {
                             title="Click to review this user's submitted verification document"
                             className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition-colors cursor-pointer"
                           >
-                            ⏳ ID Submitted
+                            â³ ID Submitted
                           </button>
                         ) : (
                           <span className="text-slate-400 text-[11px] font-medium">
@@ -763,7 +985,7 @@ export default function AdminUsersPage() {
                           title={`Grant a subscription plan to ${u.email}`}
                           className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg transition-colors whitespace-nowrap"
                         >
-                          🎁 Grant Plan
+                          ðŸŽ Grant Plan
                         </button>
                       </td>
 
@@ -780,7 +1002,7 @@ export default function AdminUsersPage() {
                               <option value={u.role}>{u.role}</option>
                             </select>
                             <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
-                              Current User – Protected
+                              Current User â€“ Protected
                             </span>
                           </div>
                         ) : isUpdatingRole ? (
