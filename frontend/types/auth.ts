@@ -31,7 +31,7 @@ export interface VerificationDocument {
   document_type: "government_id" | "college_id" | "property_proof" | string;
   original_filename: string;
   file_size?: number;
-  status: "submitted" | string;
+  status: "submitted" | "verified" | "rejected" | string;
   uploaded_at?: string;
 }
 
