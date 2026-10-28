@@ -250,8 +250,18 @@ function RoomDetailContent() {
                 />
               </svg>
             </button>
-            <div className="absolute top-4 right-4 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-md text-slate-900 font-extrabold text-sm">
-              ₹{room.rent_amount?.toLocaleString("en-IN")} <span className="text-xs text-slate-500 font-normal">/ month</span>
+            <div className="absolute top-4 right-4 px-4 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-md text-slate-900 font-extrabold text-sm text-right">
+              <div>
+                ₹{room.rent_amount?.toLocaleString("en-IN")}{" "}
+                <span className="text-xs text-slate-500 font-normal">
+                  {room.listing_purpose === "flatmate_share" ? "/ mo (Split)" : "/ month"}
+                </span>
+              </div>
+              {room.listing_purpose === "flatmate_share" && (
+                <div className="text-[10px] font-bold text-purple-700">
+                  Total Rent: ₹{(room.total_room_rent || (room.rent_amount || 0) * (room.max_occupants || 2)).toLocaleString("en-IN")} • {Math.round(100 / (room.max_occupants || 2))}% Split
+                </div>
+              )}
             </div>
             <div className="absolute bottom-4 left-4 px-3 py-1 rounded-lg bg-slate-900/80 backdrop-blur-md text-white text-xs font-semibold capitalize">
               {room.room_type} Room &bull; {room.property_type}
@@ -669,10 +679,23 @@ function RoomDetailContent() {
               </div>
 
               <div className="space-y-3 text-xs text-slate-600">
-                <div className="flex justify-between">
+                {room.listing_purpose === "flatmate_share" && (
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <span className="font-medium text-slate-500">Total Actual Room Rent:</span>
+                    <span className="font-bold text-slate-800">
+                      ₹{(room.total_room_rent || (room.rent_amount || 0) * (room.max_occupants || 2)).toLocaleString("en-IN")} / mo
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
                   <span>{room.listing_purpose === "flatmate_share" ? "Your Share of Rent:" : "Monthly Rent:"}</span>
-                  <span className="font-bold text-slate-900">₹{room.rent_amount?.toLocaleString("en-IN")}{room.listing_purpose === "flatmate_share" ? " / mo" : ""}</span>
+                  <span className="font-bold text-emerald-700 text-sm">₹{room.rent_amount?.toLocaleString("en-IN")}{room.listing_purpose === "flatmate_share" ? " / mo" : ""}</span>
                 </div>
+                {room.listing_purpose === "flatmate_share" && (
+                  <div className="text-[11px] font-medium text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200/60">
+                    ⚡ Equal split: ₹{(room.total_room_rent || (room.rent_amount || 0) * (room.max_occupants || 2)).toLocaleString("en-IN")} divided among {room.max_occupants || 2} flatmates ({Math.round(100 / (room.max_occupants || 2))}% each).
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>{room.listing_purpose === "flatmate_share" ? "Your Share of Deposit:" : "Security Deposit:"}</span>
                   <span className="font-bold text-slate-900">₹{room.deposit_amount?.toLocaleString("en-IN")}</span>

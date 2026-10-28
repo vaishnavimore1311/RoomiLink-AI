@@ -10,6 +10,8 @@ export interface RoomListing {
   property_type: string;
   room_type: string;
   rent_amount: number;
+  split_rent?: number;
+  total_room_rent?: number;
   deposit_amount: number;
   available_from: string;
   is_available: boolean;

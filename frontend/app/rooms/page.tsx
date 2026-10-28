@@ -545,11 +545,18 @@ export default function RoomsPage() {
                   </div>
 
                   {/* Rent Pill Badge */}
-                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-sm z-10">
-                    ₹{room.rent_amount.toLocaleString("en-IN")}{" "}
-                    <span className="text-[10px] text-slate-500 font-normal">
-                      {room.listing_purpose === "flatmate_share" ? "/ mo (Split)" : "/ mo"}
-                    </span>
+                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-md z-10 text-right">
+                    <div>
+                      ₹{room.rent_amount.toLocaleString("en-IN")}{" "}
+                      <span className="text-[10px] text-slate-500 font-normal">
+                        {room.listing_purpose === "flatmate_share" ? "/ mo (Split)" : "/ mo"}
+                      </span>
+                    </div>
+                    {room.listing_purpose === "flatmate_share" && (
+                      <div className="text-[9px] font-bold text-purple-700 tracking-tight">
+                        Total ₹{(room.total_room_rent || room.rent_amount * (room.max_occupants || 2)).toLocaleString("en-IN")} • {Math.round(100 / (room.max_occupants || 2))}% Split
+                      </div>
+                    )}
                   </div>
                 </div>
 
