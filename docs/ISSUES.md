@@ -288,12 +288,13 @@ This document tracks all active issues created for the latest feature requiremen
 ### Issue #84: [UX / Routing] Direct Seeker login & registration redirection to Seeker Dashboard (/dashboard)
 * **GitHub Issue**: [#84](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/84)
 * **Assigned**: Sayali (`@dsayali074-tech`)
+* **Status**: Completed (Branch: `feature/84-seeker-dashboard-redirection`)
 * **Goal**: Route authenticated room seekers directly to their personalized Seeker Dashboard upon login or registration instead of the generic `/rooms` marketplace.
 * **Frontend Changes**:
   * In `frontend/app/login/page.tsx`:
-    * When `user.role === "seeker"`, navigate to `redirectParam || "/dashboard"`.
+    * When `user.role === "seeker"`, navigate to `redirectParam || "/dashboard"` in both `useEffect` (when already authenticated) and `handleSubmit` (upon successful login).
   * In `frontend/app/register/page.tsx`:
-    * When `role === "seeker"`, navigate to `/dashboard` upon successful registration.
+    * When `role === "seeker"`, navigate to `/dashboard` upon successful registration in `handleSubmit` and when already authenticated in `useEffect`.
   * In `frontend/components/Navbar.tsx`:
     * When clicking the brand logo, route logged-in seekers to `/dashboard` instead of `/rooms`.
 
