@@ -28,7 +28,13 @@ This document tracks all active issues created for the latest feature requiremen
 | **#64** | feat(frontend): Meet Your Future Roommate profile & live AI compatibility widget on /rooms/[id] | *Unassigned* | - | Frontend / AI UI | [#64](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/64) | Open (Ready for Dev) |
 | **#65** | feat(frontend): Flatmate Space-Share badges and filter pills on /rooms and /roommates | *Unassigned* | - | Frontend / Discovery | [#65](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/65) | Open (Ready for Dev) |
 | **#66** | feat(frontend): 1-click Post Vacant Space replacement launcher inside Household Hub | *Unassigned* | - | Frontend / Household | [#66](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/66) | Open (Ready for Dev) |
-| **#67** | test(qa): Automated test suite for flatmate room shares, subscription guards, and compatibility enrichment | *Unassigned* | - | QA / Testing | [#67](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/67) | Open (Ready for Dev) |
+| **#67** | test(qa): Automated test suite for flatmate room shares, subscription guards, and compatibility enrichment | *Unassigned* | - | QA / Testing | [#67](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/67) | Closed (PR [#80](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/80)) |
+| **#83** | [Feature / Pricing] Hide Host & Lister pricing plans for logged-in Seekers | **Vaishnavi Nagtilak** | `@vaishnavi110` | Frontend / Pricing | [#83](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/83) | Open (Ready for Dev) |
+| **#84** | [UX / Routing] Direct Seeker login & registration redirection to Seeker Dashboard (/dashboard) | **Sayali** | `@dsayali074-tech` | Routing / UX | [#84](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/84) | Open (Ready for Dev) |
+| **#85** | [UX / Form] Remove "Property Owner" mode for seekers listing a spare room on /rooms/new | **Sayali** | `@dsayali074-tech` | Frontend / Form UX | [#85](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/85) | Open (Ready for Dev) |
+| **#86** | [Feature / Pricing Split] Actual room rent input and automated per-roommate equal split calculation | **Vaishnavi Nagtilak** | `@vaishnavi110` | Fullstack / Pricing | [#86](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/86) | Open (Ready for Dev) |
+| **#87** | [Backend / API] Roommate departure and admin removal endpoints with real-time broadcast notices | **Vaishnavi More** | `@vaishnavimore1311` | Backend / API | [#87](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/87) | Open (Ready for Dev) |
+| **#88** | [Frontend / Household] Roommate departure & removal UI with unsettled debt checks and departure notices | **Vaishnavi More** | `@vaishnavimore1311` | Frontend / Household | [#88](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/88) | Open (Ready for Dev) |
 
 ---
 
@@ -264,4 +270,99 @@ This document tracks all active issues created for the latest feature requiremen
   * In `backend/tests/test_matching.py`:
     * `test_roommate_with_active_room_share_enriched`: Verified candidate profiles return `active_room_share` payload.
   * Test Suite Status: **83 passed out of 83 tests (100% pass rate)**.
+
+---
+
+### Issue #83: [Feature / Pricing] Hide Host & Lister pricing plans for logged-in Seekers
+* **GitHub Issue**: [#83](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/83)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Ensure room seekers only see seeker-relevant membership options (`Free Seeker`, `Pro Seeker`) and are never exposed to commercial host tiers (`Basic Lister`, `Featured Host ₹999`).
+* **Frontend Changes**:
+  * In `frontend/app/pricing/page.tsx`:
+    * When `isAuthenticated && user?.role === "seeker"`, hide the `activeTab` switcher ("For Room Seekers" vs "For Property Hosts & Landlords").
+    * Automatically lock `activeTab` to `"seeker"`.
+    * If query param `role=lister` is supplied while logged in as a seeker, ignore it and default to `"seeker"`.
+
+---
+
+### Issue #84: [UX / Routing] Direct Seeker login & registration redirection to Seeker Dashboard (/dashboard)
+* **GitHub Issue**: [#84](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/84)
+* **Assigned**: Sayali (`@dsayali074-tech`)
+* **Goal**: Route authenticated room seekers directly to their personalized Seeker Dashboard upon login or registration instead of the generic `/rooms` marketplace.
+* **Frontend Changes**:
+  * In `frontend/app/login/page.tsx`:
+    * When `user.role === "seeker"`, navigate to `redirectParam || "/dashboard"`.
+  * In `frontend/app/register/page.tsx`:
+    * When `role === "seeker"`, navigate to `/dashboard` upon successful registration.
+  * In `frontend/components/Navbar.tsx`:
+    * When clicking the brand logo, route logged-in seekers to `/dashboard` instead of `/rooms`.
+
+---
+
+### Issue #85: [UX / Form] Remove "Property Owner" mode for seekers listing a spare room on /rooms/new
+* **GitHub Issue**: [#85](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/85)
+* **Assigned**: Sayali (`@dsayali074-tech`)
+* **Goal**: Ensure seekers listing an empty bed or spare room in their shared apartment are treated as existing tenant room-sharers, completely removing confusing "Property Owner / Landlord" options.
+* **Frontend Changes**:
+  * In `frontend/app/rooms/new/page.tsx`:
+    * If `user?.role === "seeker"` or query param `purpose === "flatmate_share"`:
+      * Remove the `🏢 Landlord / Property Owner` card completely.
+      * Lock `listingPurpose` to `"flatmate_share"`.
+      * Show clear resident flatmate badge: *"🤝 Resident Flatmate Space Share — You live here and are sharing a room/rent with an AI-compatible roommate."*
+  * In `frontend/app/rooms/page.tsx`:
+    * Update the "List a Spare Room" header button href to `/rooms/new?purpose=flatmate_share`.
+
+---
+
+### Issue #86: [Feature / Pricing Split] Actual room rent input and automated per-roommate equal split calculation
+* **GitHub Issue**: [#86](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/86)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Allow seekers to input total room rent (e.g. ₹16,000) and automatically calculate and display the equal split per roommate (e.g. ₹8,000 / 50% each) across listing inputs, search cards, and room detail pages.
+* **Backend Changes**:
+  * In `backend/app/models/property_models.py`:
+    * Add `total_room_rent` column to `Room` model.
+    * In `to_dict()`, return `total_room_rent` and `split_rent` (`rent_amount`).
+  * In `backend/app/routes/room_routes.py`:
+    * In `create_room()`, parse and store `total_room_rent`.
+* **Frontend Changes**:
+  * In `frontend/app/rooms/new/page.tsx`:
+    * Provide inputs for **Total Room Rent (₹)** and **Sharing Roommates** (default 2).
+    * Show reactive summary card showing total room rent and per-person split (50/50).
+  * In `frontend/app/rooms/page.tsx` & `frontend/app/rooms/[id]/page.tsx`:
+    * Show per-roommate split rent (`₹8,000 / mo`) with a badge indicating total room rent (`Actual Rent: ₹16,000 • 50/50 Split`).
+
+---
+
+### Issue #87: [Backend / API] Roommate departure and admin removal endpoints with real-time broadcast notices
+* **GitHub Issue**: [#87](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/87)
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Provide robust REST endpoints for a roommate to leave a household or for an admin to remove a departed roommate, while automatically broadcasting a notice event to the household activity feed.
+* **Backend Changes**:
+  * In `backend/app/routes/household_routes.py`:
+    * Add `POST /api/household/<int:household_id>/leave`:
+      * Verify user membership.
+      * If user is the sole admin, reassign admin role to the next oldest member or clean up workspace.
+      * Delete `HouseholdMember` record.
+      * Create an `Activity` record with `category="Notice"` and title `"{User Name} has moved out of the household"`.
+    * Add `DELETE /api/household/<int:household_id>/members/<int:target_user_id>`:
+      * Verify requester is household admin.
+      * Delete `HouseholdMember` record for target user.
+      * Create an `Activity` record with `category="Notice"` and title `"{Target Name} was removed from the household roster"`.
+
+---
+
+### Issue #88: [Frontend / Household] Roommate departure & removal UI with unsettled debt checks and departure notices
+* **GitHub Issue**: [#88](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/88)
+* **Assigned**: Vaishnavi More (`@vaishnavimore1311`)
+* **Goal**: Add departure controls to the Roommate Roster, pre-departure debt verification, and active departure announcement banners in the Household Hub.
+* **Frontend Changes**:
+  * In `frontend/app/household/page.tsx`:
+    * In the Roommate Roster tab (`activeTab === "members"`):
+      * For the logged-in user: add `[🚪 Move Out / Leave Household]` button.
+      * For household admin: add `[Remove]` button on other members' cards.
+    * Add Departure Modal:
+      * Inspect unsettled balances from ledger.
+      * Display warning if user has pending debts: *"You have ₹X in unpaid shared expenses. Confirm departure?"*
+    * At the top of Household Hub:
+      * If a recent departure notice exists, display a banner with a 1-click `[📢 Post Vacant Bed]` launcher.
 
