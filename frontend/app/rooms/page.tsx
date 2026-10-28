@@ -204,7 +204,7 @@ export default function RoomsPage() {
             </p>
           </div>
           <Link
-            href="/rooms/new"
+            href="/rooms/new?purpose=flatmate_share"
             onClick={handleListRoomClick}
             className="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95 whitespace-nowrap"
           >
@@ -467,7 +467,7 @@ export default function RoomsPage() {
                     Reset Filters
                   </button>
                   <Link
-                    href="/rooms/new"
+                    href={user?.role === "seeker" ? "/rooms/new?purpose=flatmate_share" : "/rooms/new"}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700"
                   >
                     List a Room
