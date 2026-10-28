@@ -15,8 +15,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
 
   const handleLogout = () => {
-    logout();
-    router.push("/");
+    logout("/login");
   };
 
   const navItems = [

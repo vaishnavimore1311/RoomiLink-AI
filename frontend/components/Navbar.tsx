@@ -24,7 +24,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Brand Logo */}
           <div className="flex items-center space-x-3">
-            <Link href={isAuthenticated ? (user?.role === "admin" ? "/admin" : user?.role === "seeker" ? "/dashboard" : "/rooms") : "/"} className="flex items-center space-x-2 group">
+            <Link href={isAuthenticated ? (user?.role === "admin" ? "/admin" : "/dashboard") : "/"} className="flex items-center space-x-2 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-teal-500 flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:scale-105 transition-transform">
                 R
               </div>
@@ -52,8 +52,8 @@ export default function Navbar() {
               {isAuthenticated ? (isAdmin ? "Browse Rooms" : "Find Rooms") : "Explore Rooms"}
             </Link>
 
-            {/* Roommates & Household Hub: Only shown to logged-in seekers */}
-            {isAuthenticated && !isAdmin && (
+            {/* Seeker-only tools: Only shown to logged-in seekers */}
+            {isAuthenticated && !isAdmin && user?.role === "seeker" && (
               <>
                 <Link
                   href="/roommates"
@@ -83,7 +83,7 @@ export default function Navbar() {
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                   }`}
                 >
-                  {user?.role === "seeker" ? "My Inquiries" : user?.role === "lister" ? "Guest Inquiries" : "Inquiries"}
+                  My Inquiries
                 </Link>
                 <Link
                   href="/dashboard?tab=saved"
@@ -91,6 +91,38 @@ export default function Navbar() {
                 >
                   <span className="text-rose-500">❤️</span>
                   <span>Saved</span>
+                </Link>
+              </>
+            )}
+
+            {/* Host-only tools: Only shown to logged-in hosts / property owners */}
+            {isAuthenticated && !isAdmin && user?.role === "lister" && (
+              <>
+                <Link
+                  href="/dashboard?tab=listings"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isActive("/dashboard")
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  🏡 My Listings
+                </Link>
+                <Link
+                  href="/dashboard?tab=inquiries"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isActive("/dashboard")
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  📬 Guest Inquiries
+                </Link>
+                <Link
+                  href="/rooms/new"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1"
+                >
+                  <span>➕</span> List a Room
                 </Link>
               </>
             )}
@@ -139,7 +171,7 @@ export default function Navbar() {
                   </span>
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={() => logout("/login")}
                   className="text-sm font-medium text-slate-600 hover:text-rose-600 py-1.5 px-3 rounded-lg transition-colors"
                 >
                   Log out
@@ -194,7 +226,7 @@ export default function Navbar() {
           </Link>
 
           {/* Seeker-only tools: Only for logged-in seekers */}
-          {isAuthenticated && !isAdmin && (
+          {isAuthenticated && !isAdmin && user?.role === "seeker" && (
             <>
               <Link
                 href="/roommates"
@@ -215,7 +247,7 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
               >
-                {user?.role === "seeker" ? "My Inquiries" : user?.role === "lister" ? "Guest Inquiries" : "Inquiries Inbox"}
+                My Inquiries
               </Link>
               <Link
                 href="/dashboard?tab=saved"
@@ -223,6 +255,33 @@ export default function Navbar() {
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
               >
                 ❤️ Saved Rooms
+              </Link>
+            </>
+          )}
+
+          {/* Host-only tools: Only for logged-in hosts */}
+          {isAuthenticated && !isAdmin && user?.role === "lister" && (
+            <>
+              <Link
+                href="/dashboard?tab=listings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                🏡 My Listings
+              </Link>
+              <Link
+                href="/dashboard?tab=inquiries"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
+              >
+                📬 Guest Inquiries
+              </Link>
+              <Link
+                href="/rooms/new"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-md text-base font-medium text-emerald-700 bg-emerald-50"
+              >
+                ➕ List a Room
               </Link>
             </>
           )}
@@ -259,7 +318,7 @@ export default function Navbar() {
                 </Link>
                 <button
                   onClick={() => {
-                    logout();
+                    logout("/login");
                     setMobileMenuOpen(false);
                   }}
                   className="text-left w-full px-3 py-2 rounded-md text-base font-medium text-rose-600 hover:bg-rose-50"
