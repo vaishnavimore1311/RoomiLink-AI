@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { MatchBreakdownData } from "@/types/matching";
 import { apiRequest } from "@/lib/api";
 import CompatibilityScoreBadge from "./CompatibilityScoreBadge";
@@ -21,6 +22,7 @@ export default function MatchExplanationModal({
   const [data, setData] = useState<MatchBreakdownData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUpgradeRequired, setIsUpgradeRequired] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
   const [introMessage, setIntroMessage] = useState("");
 
@@ -28,15 +30,20 @@ export default function MatchExplanationModal({
     const fetchBreakdown = async () => {
       setIsLoading(true);
       setError(null);
+      setIsUpgradeRequired(false);
       try {
-        const res = await apiRequest<{ data: MatchBreakdownData }>(
+        const res = await apiRequest<{ data: MatchBreakdownData; upgrade_required?: boolean }>(
           `/matching/${candidateId}/breakdown`,
           { requiresAuth: false }
         );
         if (res.data?.data) {
           setData(res.data.data);
         } else {
-          setError(res.error || "Failed to load breakdown details.");
+          const errText = res.error || "Failed to load breakdown details.";
+          setError(errText);
+          if (res.status === 403 || res.data?.upgrade_required || errText.toLowerCase().includes("upgrade")) {
+            setIsUpgradeRequired(true);
+          }
         }
       } catch (err: any) {
         setError(err?.message || "Network error loading breakdown.");
@@ -78,6 +85,27 @@ export default function MatchExplanationModal({
             <div className="py-12 flex flex-col items-center justify-center space-y-3">
               <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-xs text-slate-500">Calculating dimension matrix...</p>
+            </div>
+          ) : isUpgradeRequired ? (
+            <div className="p-8 rounded-2xl bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900 text-white text-center space-y-4 shadow-inner">
+              <div className="w-14 h-14 rounded-full bg-amber-400/20 text-amber-300 flex items-center justify-center text-2xl mx-auto font-bold border border-amber-300/30">
+                🔒
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-extrabold text-lg text-white">Upgrade Required</h4>
+                <p className="text-xs text-indigo-200 max-w-md mx-auto leading-relaxed">
+                  {error || "Free accounts can only view compatibility breakdowns for their top 2 roommate matches. Upgrade to Pro Seeker to unlock in-depth lifestyle comparisons for all compatible profiles."}
+                </p>
+              </div>
+              <div className="pt-3">
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/25 transition"
+                >
+                  <span>Upgrade to Pro Seeker</span>
+                  <span>&rarr;</span>
+                </Link>
+              </div>
             </div>
           ) : error ? (
             <div className="p-4 bg-red-50 text-red-700 rounded-xl text-xs">

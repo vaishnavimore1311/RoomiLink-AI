@@ -25,6 +25,49 @@ def get_or_create_default_pref(user_id=None) -> RoommatePreference:
     return pref
 
 
+def is_user_premium(user_id: int | None) -> bool:
+    """Check if the user is an admin or holds an active subscription."""
+    if not user_id:
+        return False
+    user = db.session.get(User, user_id)
+    if not user:
+        return False
+    if user.role == "admin":
+        return True
+    active_sub = user.get_active_subscription()
+    return active_sub is not None
+
+
+def get_user_allowed_candidate_ids(current_user_id: int | None, my_pref: RoommatePreference) -> tuple[list[int], int]:
+    """
+    Computes baseline ranked roommate candidate IDs for a user based on compatibility score.
+    Returns (top_2_candidate_ids, total_eligible_candidate_count).
+    Ensures free users have a deterministic maximum of 2 allowed matches that cannot be bypassed
+    via search or filtering.
+    """
+    query = (
+        db.session.query(User, Profile, RoommatePreference)
+        .join(Profile, User.id == Profile.user_id)
+        .outerjoin(RoommatePreference, User.id == RoommatePreference.user_id)
+        .filter(User.role != "admin")
+    )
+    if current_user_id:
+        query = query.filter(User.id != current_user_id)
+
+    all_users = query.all()
+    scored = []
+    for user, profile, pref in all_users:
+        target_pref = pref if pref else get_or_create_default_pref(user.id)
+        match_info = calculate_match_details(my_pref, target_pref)
+        scored.append((match_info["score"], user.id))
+
+    # Sort descending by compatibility score, then ascending by user.id for determinism
+    scored.sort(key=lambda item: (-item[0], item[1]))
+
+    top_2_ids = [uid for _, uid in scored[:2]]
+    return top_2_ids, len(scored)
+
+
 @matching_bp.route("/roommates", methods=["GET"])
 @jwt_required(optional=True)
 def get_roommate_matches():
@@ -38,6 +81,8 @@ def get_roommate_matches():
         my_pref = RoommatePreference.query.filter_by(user_id=current_user_id).first()
     if not my_pref:
         my_pref = get_or_create_default_pref(current_user_id)
+
+    user_is_premium = is_user_premium(current_user_id)
 
     # Optional query filters
     city_filter = request.args.get("city", "").strip()
@@ -58,6 +103,23 @@ def get_roommate_matches():
 
     if current_user_id:
         query = query.filter(User.id != current_user_id)
+
+    # Enforce limit for free users: only their top 2 baseline matches can be returned.
+    # This prevents bypassing the paywall via selective query filters or direct API calls.
+    total_eligible = 0
+    if not user_is_premium:
+        allowed_ids, total_eligible = get_user_allowed_candidate_ids(current_user_id, my_pref)
+        if not allowed_ids:
+            return jsonify({
+                "status": "success",
+                "count": 0,
+                "total_matches": 0,
+                "is_limited": False,
+                "limit": 2,
+                "has_active_subscription": False,
+                "data": []
+            }), 200
+        query = query.filter(User.id.in_(allowed_ids))
 
     if city_filter:
         query = query.filter(Profile.city.ilike(f"%{city_filter}%"))
@@ -124,9 +186,22 @@ def get_roommate_matches():
     # Sort candidates by compatibility score descending
     candidates.sort(key=lambda x: x["compatibility_score"], reverse=True)
 
+    if not user_is_premium:
+        candidates = candidates[:2]
+        is_limited = total_eligible > 2
+        limit_val = 2
+    else:
+        total_eligible = len(candidates)
+        is_limited = False
+        limit_val = None
+
     return jsonify({
         "status": "success",
         "count": len(candidates),
+        "total_matches": total_eligible,
+        "is_limited": is_limited,
+        "limit": limit_val,
+        "has_active_subscription": user_is_premium,
         "data": candidates
     }), 200
 
@@ -137,6 +212,8 @@ def get_match_breakdown(candidate_id):
     """Retrieve detailed match breakdown between current user and a candidate."""
     current_user_id = get_jwt_identity()
     current_user_id = int(current_user_id) if current_user_id else None
+
+    user_is_premium = is_user_premium(current_user_id)
 
     my_pref = None
     if current_user_id:
@@ -150,6 +227,16 @@ def get_match_breakdown(candidate_id):
             "status": "error",
             "message": "Candidate not found."
         }), 404
+
+    # Enforce limit for free users: only allowed top 2 matches can have their breakdown viewed
+    if not user_is_premium:
+        allowed_ids, _ = get_user_allowed_candidate_ids(current_user_id, my_pref)
+        if candidate.id not in allowed_ids:
+            return jsonify({
+                "status": "error",
+                "message": "Upgrade required to view compatibility breakdown for additional roommate profiles. Free accounts are limited to their top 2 matches.",
+                "upgrade_required": True
+            }), 403
 
     candidate_pref = candidate.preference
     if not candidate_pref:

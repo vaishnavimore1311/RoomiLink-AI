@@ -11,6 +11,9 @@ import MatchExplanationModal from "@/components/MatchExplanationModal";
 function RoommatesContent() {
   const { isAuthenticated, user } = useAuth();
   const [candidates, setCandidates] = useState<RoommateCandidate[]>([]);
+  const [isLimited, setIsLimited] = useState<boolean>(false);
+  const [totalMatches, setTotalMatches] = useState<number>(0);
+  const [hasActiveSub, setHasActiveSub] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,13 +38,23 @@ function RoommatesContent() {
       if (minScore > 0) params.append("min_score", minScore.toString());
       if (maxBudget) params.append("budget_max", maxBudget.toString());
 
-      const res = await apiRequest<{ data: RoommateCandidate[] }>(
+      const res = await apiRequest<{
+        data: RoommateCandidate[];
+        count: number;
+        total_matches?: number;
+        is_limited?: boolean;
+        limit?: number | null;
+        has_active_subscription?: boolean;
+      }>(
         `/matching/roommates?${params.toString()}`,
         { requiresAuth: false }
       );
 
       if (res.data?.data) {
         setCandidates(res.data.data);
+        setIsLimited(Boolean(res.data.is_limited));
+        setTotalMatches(res.data.total_matches ?? res.data.data.length);
+        setHasActiveSub(Boolean(res.data.has_active_subscription));
       } else {
         setError(res.error || "Failed to load roommate candidates.");
       }
@@ -61,6 +74,9 @@ function RoommatesContent() {
     if (hasRoomOnly && !c.active_room_share) return false;
     return true;
   });
+
+  const isUserPremium = hasActiveSub || Boolean(user?.subscription?.is_active) || user?.role === "admin";
+  const showUpgradePrompt = !isUserPremium && (isLimited || candidates.length >= 2);
 
   const resetFilters = () => {
     setSearch("");
@@ -380,6 +396,72 @@ function RoommatesContent() {
                 </div>
               </div>
             ))}
+
+            {/* In-Grid Upgrade Message Card for Free Users after first 2 matches */}
+            {showUpgradePrompt && filteredCandidates.length >= 2 && (
+              <div className="bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900 rounded-2xl border-2 border-indigo-500/40 p-6 shadow-xl flex flex-col justify-between text-white relative overflow-hidden group">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/20 border border-amber-300/30 text-amber-300 rounded-full text-xs font-bold uppercase tracking-wider">
+                    <span>⭐ Premium Feature</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-white">
+                      Unlock All Roommate Matches
+                    </h3>
+                    <p className="text-xs text-indigo-200 mt-1.5 leading-relaxed">
+                      You have reached the free tier limit of 2 roommate matches. Upgrade to Pro Seeker to browse all {totalMatches ? `${totalMatches}+` : "eligible"} verified roommate profiles, unlock detailed compatibility breakdowns, and connect directly!
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-white/10 text-xs text-indigo-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span>Unlimited roommate matching profiles</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span>Deep 8-dimension lifestyle breakdown</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span>Direct chat & space-share inquiries</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <Link
+                    href="/pricing"
+                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/25 transition transform group-hover:scale-[1.02]"
+                  >
+                    Upgrade to Pro Seeker &rarr;
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upgrade Banner for Free Tier Users */}
+        {showUpgradePrompt && (
+          <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border border-indigo-200/80 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
+            <div className="space-y-1.5 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">
+                <span>🔒 Free Tier Limit: 2 Matches</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Want to unlock all compatible roommates in Pune?
+              </h3>
+              <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
+                Free accounts can access a maximum of 2 compatible roommate profiles. Premium subscribers get unlimited access to all eligible matches across Pune and in-depth compatibility breakdowns.
+              </p>
+            </div>
+            <Link
+              href="/pricing"
+              className="shrink-0 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition"
+            >
+              View Subscription Plans &rarr;
+            </Link>
           </div>
         )}
 

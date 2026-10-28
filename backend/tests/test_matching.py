@@ -153,3 +153,181 @@ def test_roommate_with_active_room_share_enriched(client):
     assert rohan["active_room_share"] is not None
     assert rohan["active_room_share"]["title"] == "Available Bed in Kalyani Nagar"
     assert rohan["active_room_share"]["rent_amount"] == 9000.0
+
+
+def test_free_user_restricted_to_max_two_matches(client):
+    """Verify free users can only see up to 2 compatible roommate profiles."""
+    for i in range(1, 5):
+        create_user_with_prefs(
+            client, f"candidate_{i}@example.com", f"Candidate {i}", city="Pune",
+            cleanliness_level=i
+        )
+
+    free_token = create_user_with_prefs(
+        client, "free_seeker@example.com", "Free Seeker", city="Pune"
+    )
+
+    res = client.get("/api/v1/matching/roommates", headers={"Authorization": f"Bearer {free_token}"})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["status"] == "success"
+    assert len(data["data"]) == 2
+    assert data["count"] == 2
+    assert data["total_matches"] == 4
+    assert data["is_limited"] is True
+    assert data["limit"] == 2
+    assert data["has_active_subscription"] is False
+
+
+def test_free_user_cannot_bypass_limit_via_filters_or_search(client):
+    """Verify free users cannot bypass the 2-match limit using search or filters."""
+    token_a = create_user_with_prefs(
+        client, "seeker@example.com", "Seeker User", city="Pune",
+        cleanliness_level=5, sleep_schedule="night_owl"
+    )
+
+    create_user_with_prefs(
+        client, "c1@example.com", "Candidate HighOne", city="Hinjewadi",
+        cleanliness_level=5, sleep_schedule="night_owl"
+    )
+    create_user_with_prefs(
+        client, "c2@example.com", "Candidate HighTwo", city="Baner",
+        cleanliness_level=5, sleep_schedule="night_owl"
+    )
+    create_user_with_prefs(
+        client, "c3@example.com", "Candidate Third", city="Kothrud",
+        cleanliness_level=1, sleep_schedule="early_bird"
+    )
+    create_user_with_prefs(
+        client, "c4@example.com", "Candidate Fourth", city="Wakad",
+        cleanliness_level=1, sleep_schedule="early_bird"
+    )
+
+    # Free user querying by search for Candidate 3 (who is not in their allowed top 2)
+    res_search = client.get(
+        "/api/v1/matching/roommates?search=Third",
+        headers={"Authorization": f"Bearer {token_a}"}
+    )
+    assert res_search.status_code == 200
+    data_search = res_search.get_json()
+    assert len(data_search["data"]) == 0
+    assert not any(c["full_name"] == "Candidate Third" for c in data_search["data"])
+
+    # Free user querying by city for Kothrud (where only Candidate 3 lives)
+    res_city = client.get(
+        "/api/v1/matching/roommates?city=Kothrud",
+        headers={"Authorization": f"Bearer {token_a}"}
+    )
+    assert res_city.status_code == 200
+    data_city = res_city.get_json()
+    assert len(data_city["data"]) == 0
+
+
+def test_free_user_breakdown_access_restricted_beyond_two(client):
+    """Verify free users cannot access compatibility breakdown for matches beyond top 2."""
+    token_user = create_user_with_prefs(
+        client, "seeker_user@example.com", "Seeker User", city="Pune",
+        cleanliness_level=5, sleep_schedule="early_bird"
+    )
+
+    create_user_with_prefs(client, "c1@example.com", "Candidate 1", cleanliness_level=5, sleep_schedule="early_bird")
+    create_user_with_prefs(client, "c2@example.com", "Candidate 2", cleanliness_level=4, sleep_schedule="early_bird")
+    create_user_with_prefs(client, "c3@example.com", "Candidate 3", cleanliness_level=1, sleep_schedule="night_owl")
+
+    res = client.get("/api/v1/matching/roommates", headers={"Authorization": f"Bearer {token_user}"})
+    candidates = res.get_json()["data"]
+    assert len(candidates) == 2
+    top1_id = candidates[0]["user_id"]
+    top2_id = candidates[1]["user_id"]
+
+    res_b1 = client.get(f"/api/v1/matching/{top1_id}/breakdown", headers={"Authorization": f"Bearer {token_user}"})
+    assert res_b1.status_code == 200
+
+    res_b2 = client.get(f"/api/v1/matching/{top2_id}/breakdown", headers={"Authorization": f"Bearer {token_user}"})
+    assert res_b2.status_code == 200
+
+    c3_user = User.query.filter_by(email="c3@example.com").first()
+    assert c3_user is not None
+    assert c3_user.id not in [top1_id, top2_id]
+
+    res_b3 = client.get(f"/api/v1/matching/{c3_user.id}/breakdown", headers={"Authorization": f"Bearer {token_user}"})
+    assert res_b3.status_code == 403
+    err_data = res_b3.get_json()
+    assert err_data["status"] == "error"
+    assert err_data["upgrade_required"] is True
+    assert "Upgrade required" in err_data["message"]
+
+
+def test_premium_user_has_unrestricted_matching_and_breakdowns(client):
+    """Verify premium users with active subscription have full matching access and can see all matches."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.subscription_models import SubscriptionPlan, UserSubscription
+
+    token_prem = create_user_with_prefs(
+        client, "premium_seeker@example.com", "Premium Seeker", city="Pune"
+    )
+    user_prem = User.query.filter_by(email="premium_seeker@example.com").first()
+
+    plan = SubscriptionPlan(name="Pro Seeker Plan", slug="pro_seeker_plan_test", target_role="seeker", price_inr=499.0)
+    db.session.add(plan)
+    db.session.flush()
+
+    sub = UserSubscription(
+        user_id=user_prem.id,
+        plan_id=plan.id,
+        status="active",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
+    )
+    db.session.add(sub)
+    db.session.commit()
+
+    for i in range(1, 5):
+        create_user_with_prefs(client, f"cand_{i}@example.com", f"Candidate {i}", city="Pune")
+
+    res = client.get("/api/v1/matching/roommates", headers={"Authorization": f"Bearer {token_prem}"})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data["data"]) == 4
+    assert data["count"] == 4
+    assert data["total_matches"] == 4
+    assert data["is_limited"] is False
+    assert data["has_active_subscription"] is True
+
+    cand_4 = User.query.filter_by(email="cand_4@example.com").first()
+    res_b4 = client.get(f"/api/v1/matching/{cand_4.id}/breakdown", headers={"Authorization": f"Bearer {token_prem}"})
+    assert res_b4.status_code == 200
+    assert res_b4.get_json()["status"] == "success"
+
+
+def test_expired_subscription_restricted_to_two(client):
+    """Verify user with an expired subscription is restricted as a free user."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.subscription_models import SubscriptionPlan, UserSubscription
+
+    token_user = create_user_with_prefs(
+        client, "expired_sub@example.com", "Expired Sub User", city="Pune"
+    )
+    user = User.query.filter_by(email="expired_sub@example.com").first()
+
+    plan = SubscriptionPlan(name="Pro Seeker Expired", slug="pro_expired", target_role="seeker", price_inr=499.0)
+    db.session.add(plan)
+    db.session.flush()
+
+    sub = UserSubscription(
+        user_id=user.id,
+        plan_id=plan.id,
+        status="active",
+        expires_at=datetime.now(timezone.utc) - timedelta(days=5)
+    )
+    db.session.add(sub)
+    db.session.commit()
+
+    for i in range(1, 4):
+        create_user_with_prefs(client, f"exp_c_{i}@example.com", f"Exp Cand {i}", city="Pune")
+
+    res = client.get("/api/v1/matching/roommates", headers={"Authorization": f"Bearer {token_user}"})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data["data"]) == 2
+    assert data["is_limited"] is True
+    assert data["has_active_subscription"] is False
