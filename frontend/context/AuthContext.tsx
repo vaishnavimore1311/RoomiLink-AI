@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   register: (payload: RegisterPayload) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: (redirectUrl?: string) => void;
   updatePreferences: (pref: Partial<RoommatePreferences>) => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
 }
@@ -115,10 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = (redirectUrl: string = "/login") => {
     localStorage.removeItem("roomilink_token");
     setToken(null);
     setUser(null);
+    if (typeof window !== "undefined" && redirectUrl) {
+      window.location.href = redirectUrl;
+    }
   };
 
   const updatePreferences = async (

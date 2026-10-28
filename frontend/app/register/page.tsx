@@ -80,8 +80,8 @@ export default function RegisterPage() {
     setIsSubmitting(false);
 
     if (result.success) {
-      // Redirect to seeker dashboard for seekers, or rooms marketplace for other roles
-      if (role === "seeker") {
+      // Redirect to dashboard for seekers and hosts, or rooms marketplace for other roles
+      if (role === "seeker" || role === "lister") {
         router.push("/dashboard");
       } else {
         router.push("/rooms");

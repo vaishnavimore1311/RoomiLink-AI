@@ -15,16 +15,27 @@ function DashboardContent() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
 
   const tabParam = searchParams.get("tab");
+  const isLister = user?.role === "lister";
   const initialTab =
-    tabParam === "inquiries"
+    tabParam === "inquiries" || tabParam === "inbox"
       ? "inbox"
       : tabParam === "saved"
-      ? "saved"
+      ? (isLister ? "profile" : "saved")
       : tabParam === "verification"
       ? "verification"
+      : tabParam === "listings"
+      ? "listings"
+      : tabParam === "profile"
+      ? "profile"
+      : isLister
+      ? "profile"
       : "overview";
-  const [activeTab, setActiveTab] = useState<"overview" | "inbox" | "saved" | "verification">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "inbox" | "saved" | "verification" | "profile" | "listings">(initialTab);
   const [inboxSubTab, setInboxSubTab] = useState<"received" | "sent">("received");
+
+  // Host Listed Properties State
+  const [myRooms, setMyRooms] = useState<RoomListing[]>([]);
+  const [myRoomsLoading, setMyRoomsLoading] = useState(false);
 
   // Verification Document State
   const [verificationDoc, setVerificationDoc] = useState<VerificationDocument | null>(user?.verification_document || null);
@@ -125,13 +136,53 @@ function DashboardContent() {
     }
   }, [isAuthenticated]);
 
+  const fetchMyRooms = useCallback(async () => {
+    if (!isAuthenticated || user?.role !== "lister") return;
+    setMyRoomsLoading(true);
+    try {
+      const res = await apiRequest<{ data: RoomListing[] }>("/rooms/mine", { requiresAuth: true });
+      if (res.data?.data) {
+        setMyRooms(res.data.data);
+      } else {
+        const fallback = await apiRequest<{ data: RoomListing[] }>("/rooms", { requiresAuth: false });
+        if (fallback.data?.data) {
+          const userProps = fallback.data.data.filter((r: any) => r.lister_id === user?.id);
+          setMyRooms(userProps);
+        }
+      }
+    } catch {
+      try {
+        const fallback = await apiRequest<{ data: RoomListing[] }>("/rooms", { requiresAuth: false });
+        if (fallback.data?.data) {
+          const userProps = fallback.data.data.filter((r: any) => r.lister_id === user?.id);
+          setMyRooms(userProps);
+        }
+      } catch (err) {
+        console.error("Failed to load host rooms:", err);
+      }
+    } finally {
+      setMyRoomsLoading(false);
+    }
+  }, [isAuthenticated, user?.role, user?.id]);
+
+  useEffect(() => {
+    if (user?.role === "lister" && (activeTab === "overview" || activeTab === "saved")) {
+      setActiveTab("profile");
+    }
+  }, [user?.role, activeTab]);
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchInquiries();
-      fetchSavedRooms();
       fetchVerificationStatus();
+      if (user?.role === "seeker") {
+        fetchSavedRooms();
+      }
+      if (user?.role === "lister") {
+        fetchMyRooms();
+      }
     }
-  }, [isAuthenticated, fetchInquiries, fetchSavedRooms, fetchVerificationStatus]);
+  }, [isAuthenticated, user?.role, fetchInquiries, fetchSavedRooms, fetchVerificationStatus, fetchMyRooms]);
 
   const handleRemoveSavedRoom = async (roomId: number) => {
     setSavedRooms((prev) => prev.filter((r) => r.id !== roomId));
@@ -177,7 +228,6 @@ function DashboardContent() {
   const profile = user.profile;
   const pref = user.preference;
 
-  const isLister = user.role === "lister";
   const isSeeker = user.role === "seeker";
   const isAdmin = user.role === "admin";
   const showSubTabSwitcher = isAdmin;
@@ -238,14 +288,24 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <Link
-              href="/onboarding"
-              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-xl border border-indigo-200 transition-colors"
-            >
-              Edit Preferences
-            </Link>
+            {isSeeker && (
+              <Link
+                href="/onboarding"
+                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-xl border border-indigo-200 transition-colors"
+              >
+                Edit Preferences
+              </Link>
+            )}
+            {isLister && (
+              <Link
+                href="/rooms/new"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                <span>➕</span> List a Room
+              </Link>
+            )}
             <button
-              onClick={logout}
+              onClick={() => logout("/login")}
               className="px-4 py-2 border border-slate-200 text-slate-600 hover:text-rose-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
             >
               Sign out
@@ -254,20 +314,60 @@ function DashboardContent() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-              activeTab === "overview"
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            }`}
-          >
-            🏠 Overview &amp; Lifestyle
-          </button>
+        <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
+          {/* Seeker / Generic Tab: Overview & Lifestyle */}
+          {!isLister && (
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                activeTab === "overview"
+                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              🏠 Overview &amp; Lifestyle
+            </button>
+          )}
+
+          {/* Host Tabs: Profile & My Hosted Listings */}
+          {isLister && (
+            <>
+              <button
+                onClick={() => setActiveTab("profile")}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === "profile"
+                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                👤 Host Profile &amp; Info
+              </button>
+              <button
+                onClick={() => setActiveTab("listings")}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === "listings"
+                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <span>🏡 My Listings</span>
+                {myRooms.length > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                      activeTab === "listings" ? "bg-white text-indigo-600" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                    }`}
+                  >
+                    {myRooms.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+
+          {/* Inquiries Tab (Available for all) */}
           <button
             onClick={() => setActiveTab("inbox")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === "inbox"
                 ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -289,28 +389,34 @@ function DashboardContent() {
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveTab("saved")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-              activeTab === "saved"
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            }`}
-          >
-            <span>❤️ Saved Rooms</span>
-            {savedRooms.length > 0 && (
-              <span
-                className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
-                  activeTab === "saved" ? "bg-white text-indigo-600" : "bg-rose-50 text-rose-600 border border-rose-200"
-                }`}
-              >
-                {savedRooms.length}
-              </span>
-            )}
-          </button>
+
+          {/* Saved Rooms: Seeker only */}
+          {!isLister && (
+            <button
+              onClick={() => setActiveTab("saved")}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                activeTab === "saved"
+                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <span>❤️ Saved Rooms</span>
+              {savedRooms.length > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
+                    activeTab === "saved" ? "bg-white text-indigo-600" : "bg-rose-50 text-rose-600 border border-rose-200"
+                  }`}
+                >
+                  {savedRooms.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Verification Tab (Available for all) */}
           <button
             onClick={() => setActiveTab("verification")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === "verification"
                 ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -352,8 +458,240 @@ function DashboardContent() {
         </div>
 
 
-        {/* TAB 1: OVERVIEW */}
-        {activeTab === "overview" && (
+        {/* TAB: HOST PROFILE & ACCOUNT DETAILS */}
+        {isLister && activeTab === "profile" && (
+          <div className="space-y-6">
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+                  🏡
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Properties Listed</p>
+                  <p className="text-2xl font-black text-slate-900 mt-0.5">{myRooms.length}</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl font-bold">
+                  📬
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Guest Inquiries</p>
+                  <p className="text-2xl font-black text-slate-900 mt-0.5">{receivedInquiries.length}</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl font-bold">
+                  🛡️
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Host Trust Status</p>
+                  <p className="text-sm font-bold text-emerald-700 mt-1">
+                    {user.is_verified ? "✓ Verified Landlord" : verificationDoc ? "⏳ ID Submitted" : "⚠️ Photo ID Required"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Information Card */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Host Profile &amp; Contact Information</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Your landlord account details visible to prospective room seekers upon inquiry.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900 text-white">
+                  <span>🏢</span> Property Host
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Legal Name</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900">
+                      {profile?.full_name || "Name not provided"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 flex items-center justify-between">
+                      <span>{user.email}</span>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Primary</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900">
+                      {profile?.phone || "Not specified (Inquiries route via in-app inbox)"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Primary Operating City</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900">
+                      📍 {profile?.city || "Pune, Maharashtra"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Account Role &amp; Access</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 capitalize flex items-center justify-between">
+                      <span>{user.role} (Commercial Property Lister)</span>
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">Active</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Identity Verification</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 flex items-center justify-between">
+                      <span>{user.is_verified ? "Verified Identity" : verificationDoc ? "Document Under Review" : "Unverified"}</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("verification")}
+                        className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                      >
+                        {user.is_verified ? "View Badge →" : "Verify ID →"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {profile?.bio && (
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Host Bio / Management Overview</label>
+                  <p className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed">
+                    {profile.bio}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h4 className="font-extrabold text-base text-white flex items-center gap-2">
+                  <span>🏢</span> Ready to list another verified rental?
+                </h4>
+                <p className="text-xs text-slate-300 mt-1 max-w-lg">
+                  Reach thousands of verified room seekers looking for flats and rooms in Pune. Inquiries route instantly to your host inbox.
+                </p>
+              </div>
+              <Link
+                href="/rooms/new"
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl shadow-md transition whitespace-nowrap"
+              >
+                + List New Property
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MY HOSTED LISTINGS */}
+        {isLister && activeTab === "listings" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">My Hosted Property Listings</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage your active accommodations, view tenant inquiries, and update occupancy status.
+                </p>
+              </div>
+              <Link
+                href="/rooms/new"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+              >
+                <span>➕</span> Post New Property
+              </Link>
+            </div>
+
+            {myRoomsLoading ? (
+              <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-xs text-slate-500">Loading your property listings...</p>
+              </div>
+            ) : myRooms.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center text-3xl">
+                  🏡
+                </div>
+                <h3 className="text-lg font-bold text-slate-800">No Properties Listed Yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  You haven&apos;t posted any rooms or properties yet. Publish your first listing to start receiving inquiries from verified tenants.
+                </p>
+                <Link
+                  href="/rooms/new"
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                >
+                  + Post Your First Property
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myRooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col group"
+                  >
+                    <div className="relative h-44 bg-slate-100 overflow-hidden">
+                      {room.images && room.images.length > 0 ? (
+                        <img
+                          src={room.images[0]}
+                          alt={room.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-50 to-teal-50 text-slate-400">
+                          <span className="text-2xl">🏢</span>
+                        </div>
+                      )}
+                      <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-md bg-emerald-500 text-slate-950 text-[10px] font-extrabold uppercase">
+                        {room.is_available ? "Active Listing" : "Occupied"}
+                      </div>
+                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-white/95 backdrop-blur-sm text-slate-900 font-extrabold text-xs shadow-xs">
+                        ₹{room.rent_amount?.toLocaleString("en-IN")}{" "}
+                        <span className="text-[10px] text-slate-500 font-normal">/ mo</span>
+                      </div>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                          {room.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 flex items-center">
+                          <span className="mr-1 text-slate-400">📍</span>
+                          <span>{room.neighborhood ? `${room.neighborhood}, ` : ""}{room.city}</span>
+                        </p>
+                      </div>
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-500 capitalize">{room.room_type} Room</span>
+                        <Link
+                          href={`/rooms/${room.id}`}
+                          className="font-bold text-indigo-600 hover:text-indigo-700"
+                        >
+                          View Listing &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 1: OVERVIEW & LIFESTYLE (Seekers Only) */}
+        {!isLister && activeTab === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Lifestyle Compatibility Card */}
@@ -800,8 +1138,8 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* TAB 3: SAVED ROOMS */}
-        {activeTab === "saved" && (
+        {/* TAB 3: SAVED ROOMS (Seekers Only) */}
+        {!isLister && activeTab === "saved" && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
               <div>

@@ -445,5 +445,55 @@ This document tracks all active issues created for the latest feature requiremen
   * In `frontend/app/admin/users/page.tsx`:
     * Clicking on a user's '⏳ ID Submitted' badge opens a quick verification modal showing the document metadata, with 1-click 'Approve & Verify' and 'Reject' actions.
     * Add a 'Grant Plan' action button in each user table row that pre-fills the Grant Subscription modal with the user's email.
-  * Sync state immediately after verification approval or plan grant.
+---
+
+### Issue #100: [Host & Auth / UX] Fix Logout Redirection, Isolate Host Navigation, Restrict Listing Mode, and Tailor Host Profile & Pricing (Epic)
+* **GitHub Issue**: [#100](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/100)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Umbrella Epic covering the Host (`lister`) persona workflow overhaul and global logout redirection to `/login`.
+
+---
+
+### Issue #101: [Auth / UX] Fix global logout redirection to login page across Navbar, Dashboard, and Admin
+* **GitHub Issue**: [#101](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/101)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Ensure that logging out from any page (Navbar, Dashboard, or Admin Layout) immediately clears auth tokens and redirects the user to `/login`.
+* **Changes**:
+  * In `frontend/context/AuthContext.tsx`: Update `logout(redirectUrl = "/login")` to navigate to `/login`.
+  * In `frontend/components/Navbar.tsx`: Update desktop & mobile logout handlers.
+  * In `frontend/app/dashboard/page.tsx`: Update Sign Out button handler.
+  * In `frontend/app/admin/layout.tsx`: Update `handleLogout()` to route to `/login`.
+
+---
+
+### Issue #102: [Host / Navigation & Listing] Remove seeker links from Host Navbar and lock room creation to Landlord mode
+* **GitHub Issue**: [#102](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/102)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Isolate navigation bar for Hosts by removing seeker links ("Find Roommates", "Household Hub", "Saved Rooms") and adding "My Listings" and "Guest Inquiries". Lock `/rooms/new` to "Landlord / Property Owner" mode.
+* **Changes**:
+  * In `frontend/components/Navbar.tsx`: Split seeker vs host links in desktop and mobile views.
+  * In `frontend/app/rooms/new/page.tsx`: Lock `listingPurpose` to `"landlord"` for hosts, removing flatmate space-share buttons and showing a "Verified Host Mode" card.
+
+---
+
+### Issue #103: [Host / Dashboard] Overhaul Host Profile: remove Overview & Lifestyle, remove Saved Rooms, and remove Edit Preferences
+* **GitHub Issue**: [#103](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/103)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Tailor `/dashboard` for Hosts (`lister`), hiding roommate lifestyle compatibility habits, saved rooms, and roommate quiz, and presenting profile info, verification status, and hosted property listings.
+* **Changes**:
+  * In `frontend/app/dashboard/page.tsx`:
+    * Hide "Edit Preferences" button for hosts.
+    * Hide "Overview & Lifestyle" tab and "Saved Rooms" tab for hosts.
+    * Render Host Profile Details, ID Verification, and Hosted Listings.
+
+---
+
+### Issue #104: [Host / Pricing] Isolate Pricing plans: hide Seeker subscriptions for logged-in Hosts
+* **GitHub Issue**: [#104](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/104)
+* **Assigned**: Vaishnavi Nagtilak (`@vaishnavi110`)
+* **Goal**: Prevent logged-in Hosts (`role === 'lister'`) from viewing or selecting Room Seeker subscription tiers on `/pricing`, displaying exclusively Host & Landlord plans.
+* **Changes**:
+  * In `frontend/app/pricing/page.tsx`:
+    * Lock `currentTab` to `"lister"`.
+    * Hide the role switcher tabs and display the `🏢 Host & Landlord Membership Plans` badge.
 

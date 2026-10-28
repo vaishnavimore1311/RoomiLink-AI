@@ -75,7 +75,9 @@ export default function NewRoomPage() {
       }
     }
 
-    if (isShareMode) {
+    if (user?.role === "lister") {
+      setListingPurpose("landlord");
+    } else if (isShareMode) {
       setListingPurpose("flatmate_share");
       setRoomType("shared");
       setIsPurposeLocked(true);
@@ -227,9 +229,26 @@ export default function NewRoomPage() {
           {/* Dual-Mode Selector: Landlord vs Existing Tenant Space Share */}
           <div className="space-y-3 pb-6 border-b border-slate-100">
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-              {isPurposeLocked || user?.role === "seeker" ? "Listing Mode" : "Select Listing Type"}
+              {user?.role === "lister" || isPurposeLocked || user?.role === "seeker" ? "Listing Mode" : "Select Listing Type"}
             </label>
-            {isPurposeLocked || user?.role === "seeker" ? (
+            {user?.role === "lister" ? (
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-start space-x-3.5 shadow-xs text-white">
+                <span className="text-2xl mt-0.5">🏢</span>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-bold text-white">
+                      Landlord / Property Owner Listing
+                    </p>
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-emerald-500 text-slate-950">
+                      Verified Host Mode
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1 leading-snug">
+                    You are listing a private room, studio, or managed property. Prospective tenant inquiries will route directly to your Host Inquiry Inbox.
+                  </p>
+                </div>
+              </div>
+            ) : isPurposeLocked || user?.role === "seeker" ? (
               <div className="p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200/90 flex items-start space-x-3.5 shadow-xs">
                 <span className="text-2xl mt-0.5">🤝</span>
                 <div className="flex-1">

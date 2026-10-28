@@ -516,6 +516,50 @@ def update_inquiry_status(inquiry_id):
 
 
 
+@room_bp.route("/mine", methods=["GET"])
+@jwt_required()
+def get_my_rooms():
+    """Retrieve all properties and rooms listed by the authenticated user."""
+    user_id = int(get_jwt_identity())
+    results = (
+        db.session.query(Room, Property)
+        .join(Property, Room.property_id == Property.id)
+        .filter(Property.lister_id == user_id)
+        .order_by(Property.created_at.desc())
+        .all()
+    )
+
+    rooms_data = []
+    for room, prop in results:
+        rooms_data.append({
+            "id": room.id,
+            "property_id": prop.id,
+            "title": prop.title,
+            "description": prop.description,
+            "address": prop.address,
+            "city": prop.city,
+            "neighborhood": prop.neighborhood,
+            "property_type": prop.property_type,
+            "room_type": room.room_type,
+            "listing_purpose": room.listing_purpose,
+            "rent_amount": room.rent_amount,
+            "total_room_rent": getattr(room, "total_room_rent", None),
+            "deposit_amount": room.deposit_amount,
+            "available_from": room.available_from,
+            "is_available": room.is_available,
+            "is_featured": bool(room.is_featured),
+            "amenities": room.get_amenities(),
+            "images": room.get_images(),
+            "created_at": prop.created_at.isoformat() if prop.created_at else None,
+        })
+
+    return jsonify({
+        "status": "success",
+        "count": len(rooms_data),
+        "data": rooms_data
+    }), 200
+
+
 @room_bp.route("/favorites", methods=["GET"])
 @jwt_required()
 def get_user_favorites():
