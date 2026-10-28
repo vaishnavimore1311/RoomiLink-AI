@@ -309,6 +309,7 @@ This document tracks all active issues created for the latest feature requiremen
 ### Issue #85: [UX / Form] Remove "Property Owner" mode for seekers listing a spare room on /rooms/new
 * **GitHub Issue**: [#85](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/85)
 * **Assigned**: Sayali (`@dsayali074-tech`)
+* **Status**: Completed (PR: [#98](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/98), Branch: `feature/85-remove-landlord-mode-for-seekers`)
 * **Goal**: Ensure seekers listing an empty bed or spare room in their shared apartment are treated as existing tenant room-sharers, completely removing confusing "Property Owner / Landlord" options.
 * **Frontend Changes**:
   * In `frontend/app/rooms/new/page.tsx`:

@@ -37,6 +37,8 @@ export default function NewRoomPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [isPurposeLocked, setIsPurposeLocked] = useState(false);
+
   // Determine if user is eligible to create listings
   const isEligible =
     user?.role === "admin" ||
@@ -46,12 +48,14 @@ export default function NewRoomPage() {
     if (!authLoading && !isAuthenticated) {
       router.push("/login");
     }
+
+    let isShareMode = user?.role === "seeker";
+
     // Check if query params specify flatmate_share mode or household pre-fills
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("purpose") === "flatmate_share" || params.get("mode") === "share") {
-        setListingPurpose("flatmate_share");
-        setRoomType("shared");
+        isShareMode = true;
       }
       if (params.get("source") === "household") {
         setIsFromHousehold(true);
@@ -70,7 +74,13 @@ export default function NewRoomPage() {
         if (hhId > 0) setHouseholdId(hhId);
       }
     }
-  }, [authLoading, isAuthenticated, router]);
+
+    if (isShareMode) {
+      setListingPurpose("flatmate_share");
+      setRoomType("shared");
+      setIsPurposeLocked(true);
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   const toggleAmenity = (amenity: string) => {
     setSelectedAmenities((prev) =>
@@ -89,6 +99,7 @@ export default function NewRoomPage() {
 
     setIsSubmitting(true);
     try {
+      const isShare = isPurposeLocked || user?.role === "seeker" || listingPurpose === "flatmate_share";
       const payload = {
         title: title.trim(),
         description: description.trim(),
@@ -96,8 +107,8 @@ export default function NewRoomPage() {
         city: city.trim(),
         neighborhood: neighborhood.trim(),
         property_type: propertyType,
-        room_type: roomType,
-        listing_purpose: listingPurpose,
+        room_type: isShare ? "shared" : roomType,
+        listing_purpose: isShare ? "flatmate_share" : listingPurpose,
         current_occupants: Number(currentOccupants),
         max_occupants: Number(maxOccupants),
         preferred_gender: preferredGender,
@@ -216,63 +227,82 @@ export default function NewRoomPage() {
           {/* Dual-Mode Selector: Landlord vs Existing Tenant Space Share */}
           <div className="space-y-3 pb-6 border-b border-slate-100">
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Select Listing Type
+              {isPurposeLocked || user?.role === "seeker" ? "Listing Mode" : "Select Listing Type"}
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setListingPurpose("landlord")}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
-                  listingPurpose === "landlord"
-                    ? "border-slate-900 bg-slate-900 text-white shadow-md ring-2 ring-slate-900/10"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <span className="text-2xl mt-0.5">🏢</span>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <p className={`text-sm font-bold ${listingPurpose === "landlord" ? "text-white" : "text-slate-900"}`}>
-                      Landlord / Property Owner
-                    </p>
-                  </div>
-                  <p className={`text-xs mt-1 leading-snug ${listingPurpose === "landlord" ? "text-slate-300" : "text-slate-500"}`}>
-                    Renting out an entire private room, studio, or full property.
-                  </p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setListingPurpose("flatmate_share");
-                  setRoomType("shared");
-                }}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
-                  listingPurpose === "flatmate_share"
-                    ? "border-indigo-600 bg-indigo-600 text-white shadow-md ring-2 ring-indigo-600/20"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
+            {isPurposeLocked || user?.role === "seeker" ? (
+              <div className="p-4 rounded-2xl bg-indigo-50/90 border border-indigo-200/90 flex items-start space-x-3.5 shadow-xs">
                 <span className="text-2xl mt-0.5">🤝</span>
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <p className={`text-sm font-bold ${listingPurpose === "flatmate_share" ? "text-white" : "text-slate-900"}`}>
-                      I Live Here &amp; Need a Roommate
+                    <p className="text-sm font-bold text-indigo-950">
+                      Resident Flatmate Space Share
                     </p>
-                    <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
-                      listingPurpose === "flatmate_share"
-                        ? "bg-white/20 text-white"
-                        : "bg-indigo-100 text-indigo-700"
-                    }`}>
-                      Share Rent
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-indigo-600 text-white">
+                      Verified Roommate
                     </span>
                   </div>
-                  <p className={`text-xs mt-1 leading-snug ${listingPurpose === "flatmate_share" ? "text-indigo-100" : "text-slate-500"}`}>
-                    Have an empty bed/space in your room to split rent and domestic bills.
+                  <p className="text-xs text-indigo-700 mt-1 leading-snug">
+                    You live here and are sharing a room/rent with an AI-compatible roommate.
                   </p>
                 </div>
-              </button>
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setListingPurpose("landlord")}
+                  className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
+                    listingPurpose === "landlord"
+                      ? "border-slate-900 bg-slate-900 text-white shadow-md ring-2 ring-slate-900/10"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="text-2xl mt-0.5">🏢</span>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <p className={`text-sm font-bold ${listingPurpose === "landlord" ? "text-white" : "text-slate-900"}`}>
+                        Landlord / Property Owner
+                      </p>
+                    </div>
+                    <p className={`text-xs mt-1 leading-snug ${listingPurpose === "landlord" ? "text-slate-300" : "text-slate-500"}`}>
+                      Renting out an entire private room, studio, or full property.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setListingPurpose("flatmate_share");
+                    setRoomType("shared");
+                  }}
+                  className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3.5 ${
+                    listingPurpose === "flatmate_share"
+                      ? "border-indigo-600 bg-indigo-600 text-white shadow-md ring-2 ring-indigo-600/20"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="text-2xl mt-0.5">🤝</span>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <p className={`text-sm font-bold ${listingPurpose === "flatmate_share" ? "text-white" : "text-slate-900"}`}>
+                        I Live Here &amp; Need a Roommate
+                      </p>
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
+                        listingPurpose === "flatmate_share"
+                          ? "bg-white/20 text-white"
+                          : "bg-indigo-100 text-indigo-700"
+                      }`}>
+                        Share Rent
+                      </span>
+                    </div>
+                    <p className={`text-xs mt-1 leading-snug ${listingPurpose === "flatmate_share" ? "text-indigo-100" : "text-slate-500"}`}>
+                      Have an empty bed/space in your room to split rent and domestic bills.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
 
             {listingPurpose === "flatmate_share" && (
               <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-start space-x-3 mt-3">

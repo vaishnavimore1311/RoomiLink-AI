@@ -279,7 +279,7 @@ sequenceDiagram
 - [ ] Update `frontend/app/pricing/page.tsx` (Hide host pricing for seekers)
 - [x] Update `frontend/app/login/page.tsx` & `register/page.tsx` (Seeker dashboard redirection)
 - [x] Update `frontend/components/Navbar.tsx` (Logo link for seekers)
-- [ ] Update `frontend/app/rooms/new/page.tsx` (Remove property owner option for seekers)
+- [x] Update `frontend/app/rooms/new/page.tsx` (Remove property owner option for seekers)
 - [ ] Update `frontend/app/rooms/new/page.tsx` (Actual room rent & split calculation)
 - [ ] Update `backend/app/models/property_models.py` & `room_routes.py` (`total_room_rent`)
 - [ ] Update `frontend/app/rooms/page.tsx` & `rooms/[id]/page.tsx` (Display split breakdown)
