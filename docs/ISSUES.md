@@ -288,7 +288,7 @@ This document tracks all active issues created for the latest feature requiremen
 ### Issue #84: [UX / Routing] Direct Seeker login & registration redirection to Seeker Dashboard (/dashboard)
 * **GitHub Issue**: [#84](https://github.com/vaishnavimore1311/RoomiLink-AI/issues/84)
 * **Assigned**: Sayali (`@dsayali074-tech`)
-* **Status**: Completed (Branch: `feature/84-seeker-dashboard-redirection`)
+* **Status**: Completed (PR: [#96](https://github.com/vaishnavimore1311/RoomiLink-AI/pull/96), Branch: `feature/84-seeker-dashboard-redirection`)
 * **Goal**: Route authenticated room seekers directly to their personalized Seeker Dashboard upon login or registration instead of the generic `/rooms` marketplace.
 * **Frontend Changes**:
   * In `frontend/app/login/page.tsx`:
