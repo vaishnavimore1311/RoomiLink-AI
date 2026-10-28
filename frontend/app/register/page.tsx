@@ -26,6 +26,8 @@ export default function RegisterPage() {
     if (isAuthenticated) {
       if (user?.role === "admin") {
         router.push("/admin");
+      } else if (user?.role === "seeker") {
+        router.push("/dashboard");
       } else {
         router.push("/rooms");
       }
@@ -78,8 +80,12 @@ export default function RegisterPage() {
     setIsSubmitting(false);
 
     if (result.success) {
-      // Redirect to rooms after successful registration
-      router.push("/rooms");
+      // Redirect to seeker dashboard for seekers, or rooms marketplace for other roles
+      if (role === "seeker") {
+        router.push("/dashboard");
+      } else {
+        router.push("/rooms");
+      }
     } else {
       setErrorMessage(result.error || "Registration failed. An account with this email may already exist.");
     }

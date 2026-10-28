@@ -25,6 +25,8 @@ function LoginFormContent() {
         router.push(redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin");
       } else if (redirectParam && !redirectParam.startsWith("/admin")) {
         router.push(redirectParam);
+      } else if (user.role === "seeker") {
+        router.push("/dashboard");
       } else {
         router.push("/rooms");
       }
@@ -63,6 +65,8 @@ function LoginFormContent() {
         router.push(redirectParam && redirectParam.startsWith("/admin") ? redirectParam : "/admin");
       } else if (redirectParam && !redirectParam.startsWith("/admin")) {
         router.push(redirectParam);
+      } else if (result.user?.role === "seeker") {
+        router.push("/dashboard");
       } else {
         router.push("/rooms");
       }
