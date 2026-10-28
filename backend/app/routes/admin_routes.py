@@ -373,7 +373,11 @@ def admin_get_users():
 @admin_bp.route("/users/<int:user_id>/role", methods=["PATCH"])
 @admin_required()
 def admin_update_user_role(user_id):
-    """Change a user's role (e.g. promote to admin, or switch seeker/lister)."""
+    """Change a user's role (e.g. promote to admin, or switch seeker/lister).
+    Issue #94: Prevents self-demotion — an admin cannot change their own role away from 'admin'.
+    """
+    requesting_admin_id = int(get_jwt_identity())
+
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"status": "error", "message": "User not found."}), 404
@@ -383,11 +387,66 @@ def admin_update_user_role(user_id):
     if new_role not in ["seeker", "lister", "admin"]:
         return jsonify({"status": "error", "message": "Invalid role. Must be 'seeker', 'lister', or 'admin'."}), 400
 
+    # Issue #94: Prevent self-demotion — an admin cannot change their own role away from 'admin'
+    if requesting_admin_id == user_id and new_role != "admin":
+        return jsonify({
+            "status": "error",
+            "message": "Self-demotion is not permitted. An admin cannot change their own role."
+        }), 400
+
     user.role = new_role
     db.session.commit()
 
     return jsonify({
         "status": "success",
         "message": f"User role updated to '{new_role}'.",
+        "data": user.to_dict()
+    }), 200
+
+
+@admin_bp.route("/users/<int:user_id>/verify", methods=["POST"])
+@admin_required()
+def admin_verify_user(user_id):
+    """Approve a user's submitted Photo ID and mark them as verified (Issue #95)."""
+    from app.models.user_models import VerificationDocument
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    doc = VerificationDocument.query.filter_by(user_id=user_id).first()
+    if not doc:
+        return jsonify({"status": "error", "message": "No verification document found for this user."}), 404
+
+    user.is_verified = True
+    doc.status = "verified"
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": f"User {user.email} has been verified successfully.",
+        "data": user.to_dict()
+    }), 200
+
+
+@admin_bp.route("/users/<int:user_id>/reject-verification", methods=["POST"])
+@admin_required()
+def admin_reject_verification(user_id):
+    """Reject a user's submitted Photo ID verification document (Issue #95)."""
+    from app.models.user_models import VerificationDocument
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    doc = VerificationDocument.query.filter_by(user_id=user_id).first()
+    if not doc:
+        return jsonify({"status": "error", "message": "No verification document found for this user."}), 404
+
+    user.is_verified = False
+    doc.status = "rejected"
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": f"Verification document for {user.email} has been rejected.",
         "data": user.to_dict()
     }), 200
