@@ -268,26 +268,117 @@ def get_room_detail(room_id):
     }), 200
 
 
+def check_user_listing_quota(user: User) -> tuple[bool, str | None, dict]:
+    """
+    Checks if the user has available listing quota.
+    Returns (can_list, error_code, quota_info).
+
+    Rules:
+    - Admin: Unlimited listings.
+    - Active paid subscription (featured_host / host_premium / pro_seeker): Unlimited listings.
+    - Lister (role == 'lister') on free tier (Basic Lister): Allowed up to 1 active listing.
+    - Seeker (role == 'seeker') without active subscription: Blocked (SUBSCRIPTION_REQUIRED).
+    """
+    user_id = user.id
+    active_sub = user.get_active_subscription()
+
+    existing_room_count = (
+        db.session.query(Room)
+        .join(Property, Room.property_id == Property.id)
+        .filter(Property.lister_id == user_id)
+        .count()
+    )
+
+    is_admin = user.role == "admin"
+    is_premium = False
+    plan_slug = None
+    if active_sub:
+        is_premium = True
+        if active_sub.plan:
+            plan_slug = active_sub.plan.slug
+
+    if is_admin or is_premium:
+        return True, None, {
+            "role": user.role,
+            "has_active_subscription": is_premium,
+            "plan_slug": plan_slug,
+            "existing_room_count": existing_room_count,
+            "max_listings": None,
+            "can_list": True,
+            "is_unlimited": True
+        }
+
+    if user.role == "lister":
+        can_list = existing_room_count < 1
+        err_code = None if can_list else "LISTING_LIMIT_REACHED"
+        return can_list, err_code, {
+            "role": user.role,
+            "has_active_subscription": False,
+            "plan_slug": "basic_lister",
+            "existing_room_count": existing_room_count,
+            "max_listings": 1,
+            "can_list": can_list,
+            "is_unlimited": False
+        }
+
+    # Seekers require a paid subscription to list spare rooms
+    return False, "SUBSCRIPTION_REQUIRED", {
+        "role": user.role,
+        "has_active_subscription": False,
+        "plan_slug": None,
+        "existing_room_count": existing_room_count,
+        "max_listings": 0,
+        "can_list": False,
+        "is_unlimited": False
+    }
+
+
+@room_bp.route("/quota", methods=["GET"])
+@jwt_required()
+def get_room_quota():
+    """Returns the authenticated user's listing quota, active count, and eligibility."""
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"status": "error", "message": "User not found."}), 404
+
+    _, _, quota_info = check_user_listing_quota(user)
+    return jsonify({
+        "status": "success",
+        "data": quota_info
+    }), 200
+
+
 @room_bp.route("", methods=["POST"])
 @jwt_required()
 def create_room():
     """Create a new property and room listing."""
     user_id = int(get_jwt_identity())
 
-    # Subscription enforcement: only subscribed users or admins may create listings
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"status": "error", "message": "User not found."}), 404
 
-    active_sub = user.get_active_subscription()
-    if user.role != "admin" and not active_sub:
-        return jsonify({
-            "status": "error",
-            "code": "SUBSCRIPTION_REQUIRED",
-            "message": "An active subscription is required to list rooms and properties. Please subscribe to a plan first.",
-            "required_plan": "any",
-            "upgrade_url": "/pricing"
-        }), 403
+    can_list, err_code, quota_info = check_user_listing_quota(user)
+    if not can_list:
+        if err_code == "LISTING_LIMIT_REACHED":
+            return jsonify({
+                "status": "error",
+                "code": "LISTING_LIMIT_REACHED",
+                "message": "Free Basic Lister tier is limited to 1 active room listing. Upgrade to Featured Host for unlimited listings and top-of-search placement.",
+                "required_plan": "featured_host",
+                "current_count": quota_info["existing_room_count"],
+                "max_allowed": quota_info["max_listings"],
+                "upgrade_url": "/pricing"
+            }), 403
+        else:
+            return jsonify({
+                "status": "error",
+                "code": "SUBSCRIPTION_REQUIRED",
+                "message": "An active subscription is required to list rooms and properties. Please subscribe to a plan first.",
+                "required_plan": "any",
+                "upgrade_url": "/pricing"
+            }), 403
 
     data = request.get_json() or {}
 
