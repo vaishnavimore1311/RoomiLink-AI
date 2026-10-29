@@ -68,7 +68,7 @@ export default function NewRoomPage() {
   const isEligible =
     user?.role === "admin" ||
     (user?.subscription?.is_active === true) ||
-    (quota !== null ? quota.can_list : false);
+    (quota !== null ? quota.can_list : user?.role === "lister");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

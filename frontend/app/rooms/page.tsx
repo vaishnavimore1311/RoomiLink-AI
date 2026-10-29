@@ -47,7 +47,7 @@ export default function RoomsPage() {
   const isEligibleToList =
     user?.role === "admin" ||
     (user?.subscription?.is_active === true) ||
-    (quota !== null ? quota.can_list : false);
+    (quota !== null ? quota.can_list : user?.role === "lister");
 
   const handleListRoomClick = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
