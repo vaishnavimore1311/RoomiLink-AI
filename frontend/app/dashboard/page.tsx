@@ -606,6 +606,18 @@ function DashboardContent() {
                 <p className="text-xs text-slate-500 mt-1">
                   Manage your active accommodations, view tenant inquiries, and update occupancy status.
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                    {user?.subscription?.is_active
+                      ? "👑 Featured Host (Unlimited Listings)"
+                      : `Free Basic Lister: ${myRooms.length}/1 Listing Used`}
+                  </span>
+                  {!user?.subscription?.is_active && myRooms.length >= 1 && (
+                    <Link href="/pricing" className="text-[11px] font-bold text-indigo-600 hover:underline">
+                      Upgrade for unlimited &rarr;
+                    </Link>
+                  )}
+                </div>
               </div>
               <Link
                 href="/rooms/new"

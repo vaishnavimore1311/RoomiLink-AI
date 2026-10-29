@@ -39,10 +39,36 @@ export default function NewRoomPage() {
 
   const [isPurposeLocked, setIsPurposeLocked] = useState(false);
 
+  const [quota, setQuota] = useState<{
+    can_list: boolean;
+    existing_room_count: number;
+    max_listings: number | null;
+    is_unlimited: boolean;
+  } | null>(null);
+  const [isQuotaLoading, setIsQuotaLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkQuota() {
+      if (!isAuthenticated) return;
+      try {
+        const res = await apiRequest<{ data: any }>("/rooms/quota", { requiresAuth: true });
+        if (res.data?.data) {
+          setQuota(res.data.data);
+        }
+      } catch (err) {
+        console.error("Quota check:", err);
+      } finally {
+        setIsQuotaLoading(false);
+      }
+    }
+    checkQuota();
+  }, [isAuthenticated]);
+
   // Determine if user is eligible to create listings
   const isEligible =
     user?.role === "admin" ||
-    (user?.subscription?.is_active === true);
+    (user?.subscription?.is_active === true) ||
+    (quota !== null ? quota.can_list : false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -151,7 +177,9 @@ export default function NewRoomPage() {
   };
 
   // ── Subscription paywall view ──
-  if (!authLoading && isAuthenticated && !isEligible) {
+  if (!authLoading && !isQuotaLoading && isAuthenticated && !isEligible) {
+    const isListerQuotaReached = user?.role === "lister" && quota && quota.existing_room_count >= 1;
+
     return (
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
@@ -160,26 +188,25 @@ export default function NewRoomPage() {
           </Link>
 
           <div className="mt-6 bg-white border border-slate-200/80 rounded-3xl shadow-sm p-8 sm:p-12 text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center text-3xl">
+              🔒
             </div>
 
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Subscription Required
+              {isListerQuotaReached ? "Free Listing Limit Reached (1/1 Active)" : "Subscription Required"}
             </h1>
             <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-              Listing rooms and properties is a premium feature available to subscribers.
-              Upgrade your plan to start connecting with verified tenants and roommates.
+              {isListerQuotaReached
+                ? "Your Basic Lister account includes 1 free active room listing. You are currently using your free quota. Upgrade to Featured Host to publish unlimited properties and boost your listings across Pune!"
+                : "Listing rooms and space-shares is a premium feature. Upgrade your plan to connect with verified roommates and tenants across Pune."}
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link
                 href="/pricing"
-                className="inline-flex items-center justify-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+                className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
               >
-                View Plans &amp; Subscribe
+                {isListerQuotaReached ? "Upgrade to Featured Host (₹999/mo) →" : "View Plans & Subscribe →"}
               </Link>
               <Link
                 href="/rooms"

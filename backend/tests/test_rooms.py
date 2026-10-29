@@ -52,8 +52,8 @@ def test_create_room_unauthenticated(client):
     assert res.status_code == 401
 
 def test_create_room_unsubscribed_forbidden(client):
-    """Unsubscribed users cannot create listings and receive 403 SUBSCRIPTION_REQUIRED."""
-    token = register_and_get_token(client, email="unsub@example.com")
+    """Unsubscribed seeker cannot create listings and receives 403 SUBSCRIPTION_REQUIRED."""
+    token = register_and_get_token(client, email="unsub@example.com", role="seeker")
     room_payload = {
         "title": "Sunny Private Room in Blue Ridge Hinjewadi",
         "description": "Quiet room with Wi-Fi.",
@@ -76,9 +76,69 @@ def test_create_room_unsubscribed_forbidden(client):
     assert body["code"] == "SUBSCRIPTION_REQUIRED"
     assert "subscription is required" in body["message"].lower()
 
+
+def test_free_basic_lister_allows_single_listing_and_caps_at_one(client):
+    """Free Basic Lister can create exactly 1 active room listing, then receives 403 LISTING_LIMIT_REACHED for 2nd."""
+    token = register_and_get_token(client, email="free_host_quota@example.com", role="lister")
+
+    # 1. Check initial quota: 0 used, can list
+    quota_res1 = client.get("/api/v1/rooms/quota", headers={"Authorization": f"Bearer {token}"})
+    assert quota_res1.status_code == 200
+    q1 = quota_res1.get_json()["data"]
+    assert q1["can_list"] is True
+    assert q1["existing_room_count"] == 0
+    assert q1["max_listings"] == 1
+    assert q1["is_unlimited"] is False
+
+    # 2. First room creation must SUCCEED for free lister
+    room_1 = {
+        "title": "First Free Room in Hinjewadi Phase 1",
+        "description": "Spacious master bedroom.",
+        "address": "Tower 5, Megapolis",
+        "city": "Pune",
+        "neighborhood": "Hinjewadi",
+        "property_type": "apartment",
+        "room_type": "private",
+        "rent_amount": 9000.0
+    }
+    res1 = client.post("/api/v1/rooms", headers={"Authorization": f"Bearer {token}"}, json=room_1)
+    assert res1.status_code == 201
+    assert res1.get_json()["status"] == "success"
+
+    # 3. Check updated quota: 1 used, cannot list more on free tier
+    quota_res2 = client.get("/api/v1/rooms/quota", headers={"Authorization": f"Bearer {token}"})
+    assert quota_res2.status_code == 200
+    q2 = quota_res2.get_json()["data"]
+    assert q2["can_list"] is False
+    assert q2["existing_room_count"] == 1
+    assert q2["max_listings"] == 1
+
+    # 4. Attempting to post a 2nd room must return 403 with LISTING_LIMIT_REACHED
+    room_2 = {
+        "title": "Second Room in Hinjewadi Phase 1",
+        "description": "Another room.",
+        "address": "Tower 6, Megapolis",
+        "city": "Pune",
+        "neighborhood": "Hinjewadi",
+        "property_type": "apartment",
+        "room_type": "private",
+        "rent_amount": 9500.0
+    }
+    res2 = client.post("/api/v1/rooms", headers={"Authorization": f"Bearer {token}"}, json=room_2)
+    assert res2.status_code == 403
+    err_body = res2.get_json()
+    assert err_body["code"] == "LISTING_LIMIT_REACHED"
+    assert "featured_host" in err_body["required_plan"]
+
+    # 5. Upgrading to Featured Host allows 2nd room and unlimited listings
+    subscribe_user("free_host_quota@example.com", plan_slug="featured_host")
+    res2_after_sub = client.post("/api/v1/rooms", headers={"Authorization": f"Bearer {token}"}, json=room_2)
+    assert res2_after_sub.status_code == 201
+
+
 def test_create_room_expired_subscription_forbidden(client):
-    """Users with expired subscriptions cannot create listings."""
-    token = register_and_get_token(client, email="expired@example.com")
+    """Seekers or hosts with expired subscriptions cannot create listings beyond quota."""
+    token = register_and_get_token(client, email="expired@example.com", role="seeker")
     subscribe_user("expired@example.com", status="expired", expires_in_days=-5)
 
     room_payload = {

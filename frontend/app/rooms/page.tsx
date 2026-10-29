@@ -27,9 +27,27 @@ export default function RoomsPage() {
   const [favoriteToast, setFavoriteToast] = useState<{ message: string; type: "add" | "remove" } | null>(null);
 
   // Determine if user is eligible to create listings
+  const [quota, setQuota] = useState<{ can_list: boolean; existing_room_count: number } | null>(null);
+
+  useEffect(() => {
+    async function checkQuota() {
+      if (!isAuthenticated) return;
+      try {
+        const res = await apiRequest<{ data: any }>("/rooms/quota", { requiresAuth: true });
+        if (res.data?.data) {
+          setQuota(res.data.data);
+        }
+      } catch (err) {
+        console.error("Quota check:", err);
+      }
+    }
+    checkQuota();
+  }, [isAuthenticated]);
+
   const isEligibleToList =
     user?.role === "admin" ||
-    (user?.subscription?.is_active === true);
+    (user?.subscription?.is_active === true) ||
+    (quota !== null ? quota.can_list : false);
 
   const handleListRoomClick = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
@@ -164,29 +182,34 @@ export default function RoomsPage() {
         {showUpgradeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full mx-4 space-y-5 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center text-2xl">
+                🔒
               </div>
-              <h2 className="text-xl font-extrabold text-slate-900">Subscription Required</h2>
+              <h2 className="text-xl font-extrabold text-slate-900">
+                {user?.role === "lister" && quota && quota.existing_room_count >= 1
+                  ? "Free Listing Limit Reached (1/1 Active)"
+                  : "Subscription Required"}
+              </h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Listing rooms and properties is available to subscribed users only.
-                Subscribe to a plan to start connecting with verified tenants.
+                {user?.role === "lister" && quota && quota.existing_room_count >= 1
+                  ? "Your Basic Lister account includes 1 free active room listing. You are already using your free quota. Upgrade to Featured Host to list unlimited properties across Pune!"
+                  : "Listing rooms and space-shares requires an active subscription. Subscribe to a plan to start connecting with verified tenants."}
               </p>
               <div className="flex flex-col gap-2.5">
                 <Link
                   href="/pricing"
-                  className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+                  className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
                 >
-                  View Plans &amp; Subscribe
+                  {user?.role === "lister" && quota && quota.existing_room_count >= 1
+                    ? "Upgrade to Featured Host (₹999/mo) →"
+                    : "View Subscription Plans →"}
                 </Link>
                 <button
                   type="button"
                   onClick={() => setShowUpgradeModal(false)}
-                  className="w-full px-5 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                  className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
-                  Maybe Later
+                  Maybe later
                 </button>
               </div>
             </div>
