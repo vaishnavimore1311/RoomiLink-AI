@@ -34,7 +34,7 @@ This plan outlines the required enhancements and architectural solutions for the
 │ • Answers: WHO are you?                      │       │   'basic_lister', 'featured_host'            │
 │ • Permissions:                               │       │ • Answers: WHAT paid features can you use?   │
 │   - Seeker: find rooms/roommates, household  │       │ • Entitlements:                              │
-│   - Lister: commercial landlord listings     │       │   - Free: 2 matches/day, masked address      │
+│   - Lister: commercial landlord listings     │       │   - Free: 2 matches max, masked address      │
 │   - Admin: global platform governance        │       │   - Pro: unlimited AI, unlocked address,     │
 │ • Lifecycle: Permanent until changed         │       │     verified badge, Living Agreements        │
 │                                              │       │ • Lifecycle: Monthly, auto-expires/renews    │

@@ -49,6 +49,12 @@ export default function NewRoomPage() {
       router.push("/login");
     }
 
+    if (user?.role === "lister") {
+      setListingPurpose("landlord");
+      setIsPurposeLocked(true);
+      return;
+    }
+
     let isShareMode = user?.role === "seeker";
 
     // Check if query params specify flatmate_share mode or household pre-fills
@@ -75,9 +81,7 @@ export default function NewRoomPage() {
       }
     }
 
-    if (user?.role === "lister") {
-      setListingPurpose("landlord");
-    } else if (isShareMode) {
+    if (isShareMode) {
       setListingPurpose("flatmate_share");
       setRoomType("shared");
       setIsPurposeLocked(true);
@@ -101,7 +105,7 @@ export default function NewRoomPage() {
 
     setIsSubmitting(true);
     try {
-      const isShare = isPurposeLocked || user?.role === "seeker" || listingPurpose === "flatmate_share";
+      const isShare = user?.role !== "lister" && (isPurposeLocked || user?.role === "seeker" || listingPurpose === "flatmate_share");
       const payload = {
         title: title.trim(),
         description: description.trim(),
@@ -117,7 +121,7 @@ export default function NewRoomPage() {
         utility_split_desc: utilitySplitDesc.trim(),
         household_id: householdId,
         rent_amount: Number(rentAmount),
-        total_room_rent: Number(listingPurpose === "flatmate_share" ? totalRoomRent : rentAmount),
+        total_room_rent: Number(isShare ? totalRoomRent : rentAmount),
         deposit_amount: Number(depositAmount),
         available_from: availableFrom.trim() || "Immediate",
         amenities: selectedAmenities,
@@ -211,7 +215,7 @@ export default function NewRoomPage() {
           </div>
         )}
 
-        {isFromHousehold && (
+        {user?.role !== "lister" && isFromHousehold && (
           <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 flex items-start gap-3 shadow-sm">
             <span className="text-xl">🏠</span>
             <div>
@@ -323,7 +327,7 @@ export default function NewRoomPage() {
               </div>
             )}
 
-            {listingPurpose === "flatmate_share" && (
+            {user?.role !== "lister" && listingPurpose === "flatmate_share" && (
               <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-100 flex items-start space-x-3 mt-3">
                 <span className="text-lg">✨</span>
                 <div className="text-xs text-indigo-950 leading-relaxed">
@@ -410,11 +414,11 @@ export default function NewRoomPage() {
           {/* Section 2: Room Specifics & Pricing */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider pb-2 border-b border-slate-100">
-              {listingPurpose === "flatmate_share" ? "2. Roommate Sharing & Rent Split (₹ INR)" : "2. Room Specifics & Pricing (₹ INR)"}
+              {user?.role !== "lister" && listingPurpose === "flatmate_share" ? "2. Roommate Sharing & Rent Split (₹ INR)" : "2. Room Specifics & Pricing (₹ INR)"}
             </h2>
 
             {/* Flatmate Room-Share Specific Fields */}
-            {listingPurpose === "flatmate_share" && (
+            {user?.role !== "lister" && listingPurpose === "flatmate_share" && (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
@@ -584,7 +588,7 @@ export default function NewRoomPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {listingPurpose === "flatmate_share" ? "Roommate Deposit Share (₹ INR)" : "Security Deposit (₹ INR)"}
+                  {user?.role !== "lister" && listingPurpose === "flatmate_share" ? "Roommate Deposit Share (₹ INR)" : "Security Deposit (₹ INR)"}
                 </label>
                 <input
                   type="number"

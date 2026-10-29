@@ -28,6 +28,9 @@ export default function OnboardingPage() {
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
     }
+    if (!isLoading && isAuthenticated && user?.role === "lister") {
+      router.push("/dashboard");
+    }
     if (user?.preference) {
       setSleepSchedule(user.preference.sleep_schedule || "flexible");
       setCleanlinessLevel(user.preference.cleanliness_level || 3);

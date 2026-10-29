@@ -422,7 +422,7 @@ def seed_admin_and_pune_data(app):
         p1.set_features([
             "Search verified rooms in Pune & nationwide",
             "Basic lifestyle compatibility percentage",
-            "Up to 3 roommate matches per day"
+            "Maximum 2 compatible roommate matches & breakdowns"
         ])
 
         p2 = SubscriptionPlan(

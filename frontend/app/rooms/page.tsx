@@ -74,7 +74,7 @@ export default function RoomsPage() {
             if (Array.isArray(stored)) {
               stored.forEach((id: number) => favSet.add(id));
             }
-          } catch (e) {}
+          } catch (e) { }
         }
         setFavoritedIds(favSet);
       } else {
@@ -109,7 +109,7 @@ export default function RoomsPage() {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("roomilink_local_favorites", JSON.stringify(Array.from(updatedSet)));
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (isAuthenticated) {
@@ -204,11 +204,11 @@ export default function RoomsPage() {
             </p>
           </div>
           <Link
-            href="/rooms/new?purpose=flatmate_share"
+            href={user?.role === "seeker" ? "/rooms/new?purpose=flatmate_share" : "/rooms/new"}
             onClick={handleListRoomClick}
             className="inline-flex items-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm shadow-indigo-100 transition-all active:scale-95 whitespace-nowrap"
           >
-            List a Spare Room
+            {user?.role === "lister" ? "+ Post Property Listing" : user?.role === "seeker" ? "List a Spare Room" : "List a Room"}
           </Link>
         </div>
 
@@ -216,12 +216,12 @@ export default function RoomsPage() {
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: "all", label: "All Rooms", icon: "🏠", count: rooms.length },
-            {
-              id: "flatmate_share",
-              label: "Flatmate Space-Shares (Rent Split)",
-              icon: "🤝",
-              count: rooms.filter((r) => r.listing_purpose === "flatmate_share").length,
-            },
+            // {
+            //   id: "flatmate_share",
+            //   label: "Flatmate Space-Shares (Rent Split)",
+            //   icon: "🤝",
+            //   count: rooms.filter((r) => r.listing_purpose === "flatmate_share").length,
+            // },
             {
               id: "landlord",
               label: "Commercial Landlord Rentals",
@@ -235,18 +235,16 @@ export default function RoomsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setPurposeFilter(tab.id as any)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-95 cursor-pointer ${
-                  isActive
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-95 cursor-pointer ${isActive
                     ? "bg-slate-900 text-white ring-2 ring-slate-800 shadow-md"
                     : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                    }`}
                 >
                   {tab.count}
                 </span>
@@ -286,11 +284,10 @@ export default function RoomsPage() {
                     setCity(hotspot.c);
                     setSearch(hotspot.s);
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    isActive
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${isActive
                       ? "bg-indigo-600 text-white shadow-sm"
                       : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   {hotspot.label}
                 </button>
@@ -301,18 +298,16 @@ export default function RoomsPage() {
             <button
               type="button"
               onClick={() => setSavedOnly(!savedOnly)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs ml-1 ${
-                savedOnly
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs ml-1 ${savedOnly
                   ? "bg-rose-500 text-white ring-2 ring-rose-400"
                   : "bg-white text-slate-700 border border-slate-200 hover:border-rose-300 hover:text-rose-600"
-              }`}
+                }`}
             >
               <span className={savedOnly ? "text-white" : "text-rose-500"}>❤️</span>
               <span>Saved Rooms</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  savedOnly ? "bg-white text-rose-600" : "bg-rose-50 text-rose-600 border border-rose-100"
-                }`}
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${savedOnly ? "bg-white text-rose-600" : "bg-rose-50 text-rose-600 border border-rose-100"
+                  }`}
               >
                 {favoritedIds.size}
               </span>
@@ -389,8 +384,8 @@ export default function RoomsPage() {
                 type="button"
                 onClick={() => setSelectedAmenity(selectedAmenity === amenity ? "" : amenity)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${selectedAmenity === amenity
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                   }`}
               >
                 {amenity}
@@ -518,11 +513,10 @@ export default function RoomsPage() {
                     onClick={(e) => handleToggleFavorite(e, room.id)}
                     aria-label={favoritedIds.has(room.id) ? "Remove from favorites" : "Save to favorites"}
                     title={favoritedIds.has(room.id) ? "Remove from saved rooms" : "Save this room"}
-                    className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-md backdrop-blur-md transition-all z-20 active:scale-90 ${
-                      favoritedIds.has(room.id)
+                    className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-md backdrop-blur-md transition-all z-20 active:scale-90 ${favoritedIds.has(room.id)
                         ? "bg-rose-500 text-white hover:bg-rose-600 scale-105"
                         : "bg-white/90 text-slate-500 hover:text-rose-500 hover:bg-white"
-                    }`}
+                      }`}
                   >
                     <svg
                       className="w-4 h-4 transition-transform duration-200"

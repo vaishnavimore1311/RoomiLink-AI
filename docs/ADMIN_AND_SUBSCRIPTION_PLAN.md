@@ -217,7 +217,7 @@ Form fields:
 ### Step 6.3: Public Pricing & Subscriptions Page (`frontend/app/pricing/page.tsx`)
 1. Dual toggle: **"For Room Seekers"** vs. **"For Property Listers"**.
 2. Clean pricing cards with feature comparisons:
-   - **Free Seeker**: Standard search, 3 match checks/day.
+   - **Free Seeker**: Standard search, maximum 2 roommate matches & breakdowns.
    - **Pro Seeker (₹499/mo)**: Unlimited AI match explanations, instant roommate contact, AI Living Agreement generator, verified badge.
    - **Basic Lister (Free)**: 1 room listing.
    - **Featured Host (₹999/mo)**: Featured room badge, priority search ranking in Pune, unlimited listings.
